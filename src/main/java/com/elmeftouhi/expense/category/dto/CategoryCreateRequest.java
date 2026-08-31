@@ -15,7 +15,7 @@ public record CategoryCreateRequest(
         @Size(max = 20) String textColor,
         @Size(max = 20) String backgroundColor,
         @PositiveOrZero BigDecimal monthlyBudget,
-        @NotNull @PositiveOrZero Integer level,
+        @PositiveOrZero Integer level,
         @NotNull Boolean active,
         @NotNull Boolean allowOverBudget
 ) {

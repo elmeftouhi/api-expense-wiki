@@ -9,7 +9,9 @@ import com.elmeftouhi.expense.multitenancy.TenantContext;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import com.elmeftouhi.expense.shared.exception.ConflictException;
 import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,14 +52,18 @@ public class CategoryService {
         Long tenantId = TenantContext.getRequiredTenantId();
         String normalizedName = normalizeName(request.name());
         ensureNameIsAvailable(tenantId, normalizedName, null);
+        Integer requestedLevel = request.level();
 
         Category category = new Category();
         category.setParentCategory(resolveParentCategory(tenantId, request.parentCategoryId(), null));
         applyRequest(category, request);
         category.setName(normalizedName);
-        category.setLevel(request.level());
+        category.setLevel(requestedLevel);
 
-        CategoryResponse response = toResponse(categoryRepository.save(category), true);
+        Category saved = categoryRepository.save(category);
+        reorderSiblingGroup(tenantId, getParentCategoryId(saved), saved.getId(), requestedLevel);
+
+        CategoryResponse response = toResponse(loadCategory(saved.getId(), tenantId), true);
         logActivity(ActivityAction.CREATE, response, buildActivityMessage("created"), buildActivityMetadata(response));
         return response;
     }
@@ -66,15 +72,32 @@ public class CategoryService {
     public CategoryResponse update(Long id, CategoryCreateRequest request) {
         Long tenantId = TenantContext.getRequiredTenantId();
         Category category = loadCategory(id, tenantId);
+        Long previousParentCategoryId = getParentCategoryId(category);
+        Integer previousLevel = category.getLevel();
         String normalizedName = normalizeName(request.name());
         ensureNameIsAvailable(tenantId, normalizedName, id);
+
+        if (request.parentCategoryId() != null && categoryRepository.existsByTenantIdAndParentCategoryId(tenantId, id)) {
+            throw new BadRequestException("A category with subcategories cannot become a child category");
+        }
 
         category.setParentCategory(resolveParentCategory(tenantId, request.parentCategoryId(), id));
         applyRequest(category, request);
         category.setName(normalizedName);
-        category.setLevel(request.level());
+        Integer requestedLevel = resolveRequestedLevelForUpdate(request.level(), previousLevel, previousParentCategoryId, request.parentCategoryId());
+        category.setLevel(requestedLevel);
 
-        CategoryResponse response = toResponse(categoryRepository.save(category), true);
+        Category saved = categoryRepository.save(category);
+        Long currentParentCategoryId = getParentCategoryId(saved);
+
+        if (Objects.equals(previousParentCategoryId, currentParentCategoryId)) {
+            reorderSiblingGroup(tenantId, currentParentCategoryId, saved.getId(), requestedLevel);
+        } else {
+            normalizeSiblingLevels(tenantId, previousParentCategoryId);
+            reorderSiblingGroup(tenantId, currentParentCategoryId, saved.getId(), requestedLevel);
+        }
+
+        CategoryResponse response = toResponse(loadCategory(saved.getId(), tenantId), true);
         logActivity(ActivityAction.UPDATE, response, buildActivityMessage("updated"), buildActivityMetadata(response));
         return response;
     }
@@ -83,11 +106,13 @@ public class CategoryService {
     public void delete(Long id) {
         Long tenantId = TenantContext.getRequiredTenantId();
         Category category = loadCategory(id, tenantId);
+        Long parentCategoryId = getParentCategoryId(category);
         if (categoryRepository.existsByTenantIdAndParentCategoryId(tenantId, id)) {
             throw new ConflictException("Cannot delete a category that has subcategories");
         }
         CategoryResponse response = toResponse(category, true);
         categoryRepository.delete(category);
+        normalizeSiblingLevels(tenantId, parentCategoryId);
         logActivity(ActivityAction.DELETE, response, buildActivityMessage("deleted"), buildActivityMetadata(response));
     }
 
@@ -117,6 +142,71 @@ public class CategoryService {
             throw new BadRequestException("Parent category must be a root category");
         }
         return parentCategory;
+    }
+
+    private void reorderSiblingGroup(Long tenantId, Long parentCategoryId, Long categoryId, Integer requestedLevel) {
+        List<Category> siblings = new ArrayList<>(loadSiblingGroup(tenantId, parentCategoryId));
+        Category targetCategory = removeCategory(siblings, categoryId);
+        int insertIndex = normalizeInsertionIndex(requestedLevel, siblings.size());
+        siblings.add(insertIndex, targetCategory);
+        assignSequentialLevels(siblings);
+        categoryRepository.saveAll(siblings);
+    }
+
+    private void normalizeSiblingLevels(Long tenantId, Long parentCategoryId) {
+        List<Category> siblings = loadSiblingGroup(tenantId, parentCategoryId);
+        assignSequentialLevels(siblings);
+        if (!siblings.isEmpty()) {
+            categoryRepository.saveAll(siblings);
+        }
+    }
+
+    private List<Category> loadSiblingGroup(Long tenantId, Long parentCategoryId) {
+        if (parentCategoryId == null) {
+            return categoryRepository.findRootCategoriesForReorder(tenantId);
+        }
+        return categoryRepository.findChildCategoriesForReorder(tenantId, parentCategoryId);
+    }
+
+    private Category removeCategory(List<Category> siblings, Long categoryId) {
+        for (int index = 0; index < siblings.size(); index++) {
+            Category sibling = siblings.get(index);
+            if (categoryId.equals(sibling.getId())) {
+                siblings.remove(index);
+                return sibling;
+            }
+        }
+        throw new ResourceNotFoundException("Category not found");
+    }
+
+    private int normalizeInsertionIndex(Integer requestedLevel, int currentSiblingCountWithoutTarget) {
+        int desiredLevel = requestedLevel == null ? currentSiblingCountWithoutTarget + 1 : requestedLevel;
+        int normalizedLevel = Math.max(1, Math.min(desiredLevel, currentSiblingCountWithoutTarget + 1));
+        return normalizedLevel - 1;
+    }
+
+    private void assignSequentialLevels(List<Category> siblings) {
+        for (int index = 0; index < siblings.size(); index++) {
+            siblings.get(index).setLevel(index + 1);
+        }
+    }
+
+    private Long getParentCategoryId(Category category) {
+        return category.getParentCategory() != null ? category.getParentCategory().getId() : null;
+    }
+
+    private Integer resolveRequestedLevelForUpdate(
+            Integer requestedLevel,
+            Integer previousLevel,
+            Long previousParentCategoryId,
+            Long requestedParentCategoryId) {
+        if (requestedLevel != null) {
+            return requestedLevel;
+        }
+        if (Objects.equals(previousParentCategoryId, requestedParentCategoryId)) {
+            return previousLevel;
+        }
+        return null;
     }
 
     private void applyRequest(Category category, CategoryCreateRequest request) {

@@ -21,6 +21,15 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
             @Param("includeInactive") boolean includeInactive
     );
 
+    @Query("SELECT c FROM Category c WHERE c.tenantId = :tenantId AND c.parentCategory IS NULL ORDER BY COALESCE(c.level, 0) ASC, c.name ASC")
+    List<Category> findRootCategoriesForReorder(@Param("tenantId") Long tenantId);
+
+    @Query("SELECT c FROM Category c WHERE c.tenantId = :tenantId AND c.parentCategory.id = :parentCategoryId ORDER BY COALESCE(c.level, 0) ASC, c.name ASC")
+    List<Category> findChildCategoriesForReorder(
+            @Param("tenantId") Long tenantId,
+            @Param("parentCategoryId") Long parentCategoryId
+    );
+
     Optional<Category> findByIdAndTenantId(Long id, Long tenantId);
 
     Optional<Category> findByTenantIdAndNameIgnoreCase(Long tenantId, String name);
