@@ -5,6 +5,7 @@ public enum ActivitySubjectType {
     CUSTOMER,
     COMPANY,
     USER,
+    CATEGORY,
     EXERCICE,
     PROVIDER,
     TENANT,
