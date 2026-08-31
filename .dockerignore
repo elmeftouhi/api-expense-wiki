@@ -1,0 +1,12 @@
+target/
+.git/
+.gitignore
+README.md
+INVOICE_IMPLEMENTATION.md
+.DS_Store
+*.log
+.idea/
+*.iml
+.vscode/
+node_modules/
+
