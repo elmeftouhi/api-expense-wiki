@@ -23,16 +23,26 @@ public class CategoryService {
 
     @Transactional(readOnly = true)
     public List<CategoryResponse> findAll() {
+        return findAll(false);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CategoryResponse> findAll(boolean includeInactive) {
         Long tenantId = TenantContext.getRequiredTenantId();
-        return categoryRepository.findAllByTenantIdOrderByNameAsc(tenantId).stream()
-                .map(this::toResponse)
+        return categoryRepository.findRootCategories(tenantId, includeInactive).stream()
+                .map(category -> toResponse(category, includeInactive))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<CategoryResponse> findAllIncludingInactive(boolean includeInactive) {
+        return findAll(includeInactive);
     }
 
     @Transactional(readOnly = true)
     public CategoryResponse getById(Long id) {
         Long tenantId = TenantContext.getRequiredTenantId();
-        return toResponse(loadCategory(id, tenantId));
+        return toResponse(loadCategory(id, tenantId), true);
     }
 
     @Transactional
@@ -42,10 +52,12 @@ public class CategoryService {
         ensureNameIsAvailable(tenantId, normalizedName, null);
 
         Category category = new Category();
+        category.setParentCategory(resolveParentCategory(tenantId, request.parentCategoryId(), null));
         applyRequest(category, request);
         category.setName(normalizedName);
+        category.setLevel(request.level());
 
-        CategoryResponse response = toResponse(categoryRepository.save(category));
+        CategoryResponse response = toResponse(categoryRepository.save(category), true);
         logActivity(ActivityAction.CREATE, response, buildActivityMessage("created"), buildActivityMetadata(response));
         return response;
     }
@@ -57,10 +69,12 @@ public class CategoryService {
         String normalizedName = normalizeName(request.name());
         ensureNameIsAvailable(tenantId, normalizedName, id);
 
+        category.setParentCategory(resolveParentCategory(tenantId, request.parentCategoryId(), id));
         applyRequest(category, request);
         category.setName(normalizedName);
+        category.setLevel(request.level());
 
-        CategoryResponse response = toResponse(categoryRepository.save(category));
+        CategoryResponse response = toResponse(categoryRepository.save(category), true);
         logActivity(ActivityAction.UPDATE, response, buildActivityMessage("updated"), buildActivityMetadata(response));
         return response;
     }
@@ -69,7 +83,10 @@ public class CategoryService {
     public void delete(Long id) {
         Long tenantId = TenantContext.getRequiredTenantId();
         Category category = loadCategory(id, tenantId);
-        CategoryResponse response = toResponse(category);
+        if (categoryRepository.existsByTenantIdAndParentCategoryId(tenantId, id)) {
+            throw new ConflictException("Cannot delete a category that has subcategories");
+        }
+        CategoryResponse response = toResponse(category, true);
         categoryRepository.delete(category);
         logActivity(ActivityAction.DELETE, response, buildActivityMessage("deleted"), buildActivityMetadata(response));
     }
@@ -87,6 +104,21 @@ public class CategoryService {
                 });
     }
 
+    private Category resolveParentCategory(Long tenantId, Long parentCategoryId, Long currentCategoryId) {
+        if (parentCategoryId == null) {
+            return null;
+        }
+
+        Category parentCategory = loadCategory(parentCategoryId, tenantId);
+        if (currentCategoryId != null && currentCategoryId.equals(parentCategory.getId())) {
+            throw new BadRequestException("A category cannot be its own parent");
+        }
+        if (parentCategory.getParentCategory() != null) {
+            throw new BadRequestException("Parent category must be a root category");
+        }
+        return parentCategory;
+    }
+
     private void applyRequest(Category category, CategoryCreateRequest request) {
         category.setDescription(normalizeOptional(request.description()));
         category.setIcon(normalizeOptional(request.icon()));
@@ -97,9 +129,25 @@ public class CategoryService {
         category.setAllowOverBudget(Boolean.TRUE.equals(request.allowOverBudget()));
     }
 
-    private CategoryResponse toResponse(Category category) {
+    private CategoryResponse toResponse(Category category, boolean includeInactive) {
+        List<CategoryResponse> subCategories = categoryRepository
+                .findChildCategories(category.getTenantId(), category.getId(), includeInactive)
+                .stream()
+                .map(this::toChildResponse)
+                .toList();
+
+        return toResponse(category, subCategories);
+    }
+
+    private CategoryResponse toChildResponse(Category category) {
+        return toResponse(category, List.of());
+    }
+
+    private CategoryResponse toResponse(Category category, List<CategoryResponse> subCategories) {
         return new CategoryResponse(
                 category.getId(),
+                category.getParentCategory() != null ? category.getParentCategory().getId() : null,
+                category.getLevel(),
                 category.getName(),
                 category.getDescription(),
                 category.getIcon(),
@@ -108,7 +156,8 @@ public class CategoryService {
                 category.getMonthlyBudget(),
                 category.isActive(),
                 category.isAllowOverBudget(),
-                category.getTenantId()
+                category.getTenantId(),
+                subCategories
         );
     }
 
@@ -146,6 +195,8 @@ public class CategoryService {
     private String buildActivityMetadata(CategoryResponse category) {
         return "{" +
                 "\"id\":" + category.id() + ',' +
+                "\"parentCategoryId\":" + (category.parentCategoryId() == null ? "null" : category.parentCategoryId()) + ',' +
+                "\"level\":" + (category.level() == null ? "null" : category.level()) + ',' +
                 "\"name\":\"" + escapeJson(category.name()) + "\"," +
                 "\"active\":" + category.active() + ',' +
                 "\"allowOverBudget\":" + category.allowOverBudget() +

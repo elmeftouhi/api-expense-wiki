@@ -41,7 +41,12 @@ class CategoryServiceTests {
     @AfterEach
     void clearTenant() {
         TenantContext.clear();
-        categoryRepository.deleteAll();
+        categoryRepository.findAll().stream()
+                .filter(category -> category.getParentCategory() != null)
+                .forEach(categoryRepository::delete);
+        categoryRepository.findAll().stream()
+                .filter(category -> category.getParentCategory() == null)
+                .forEach(categoryRepository::delete);
         activityLogRepository.deleteAll();
     }
 
@@ -49,25 +54,31 @@ class CategoryServiceTests {
     void categoriesAreScopedToCurrentTenant() {
         TenantContext.setTenantId(1L);
         CategoryResponse created = categoryService.create(new CategoryCreateRequest(
+                null,
                 "Food",
                 "Daily meals",
                 "utensils",
                 "#111111",
                 "#ffffff",
                 new BigDecimal("250.00"),
+                1,
                 true,
                 false
         ));
         assertEquals(1L, created.tenantId());
         assertEquals("Food", created.name());
+        assertEquals(1, created.level());
+        assertThat(created.subCategories()).isEmpty();
 
         CategoryResponse createdTransport = categoryService.create(new CategoryCreateRequest(
+                null,
                 "Transport",
                 null,
                 null,
                 null,
                 null,
                 new BigDecimal("100.00"),
+                2,
                 true,
                 true
         ));
@@ -75,6 +86,8 @@ class CategoryServiceTests {
 
         List<CategoryResponse> tenantOneCategories = categoryService.findAll();
         assertThat(tenantOneCategories).hasSize(2);
+        assertEquals("Food", tenantOneCategories.get(0).name());
+        assertEquals("Transport", tenantOneCategories.get(1).name());
 
         TenantContext.setTenantId(2L);
         assertThat(categoryService.findAll()).isEmpty();
@@ -84,12 +97,14 @@ class CategoryServiceTests {
     void cannotReuseCategoryNameWithinSameTenant() {
         TenantContext.setTenantId(1L);
         CategoryCreateRequest request = new CategoryCreateRequest(
+                null,
                 "Food",
                 null,
                 null,
                 null,
                 null,
                 null,
+                1,
                 true,
                 false
         );
@@ -97,7 +112,7 @@ class CategoryServiceTests {
         categoryService.create(request);
 
         ConflictException exception = assertThrows(ConflictException.class, () -> categoryService.create(
-                new CategoryCreateRequest(" food ", null, null, null, null, null, true, false)
+                new CategoryCreateRequest(null, " food ", null, null, null, null, null, 1, true, false)
         ));
 
         assertThat(exception.getMessage()).contains("already exists");
@@ -107,12 +122,14 @@ class CategoryServiceTests {
     void categoriesCannotBeReadAcrossTenants() {
         TenantContext.setTenantId(1L);
         CategoryResponse created = categoryService.create(new CategoryCreateRequest(
+                null,
                 "Health",
                 null,
                 null,
                 null,
                 null,
                 null,
+                1,
                 true,
                 false
         ));
@@ -122,26 +139,156 @@ class CategoryServiceTests {
     }
 
     @Test
+    void subcategoriesAreReturnedWithTheirParentCategory() {
+        TenantContext.setTenantId(1L);
+        CategoryResponse parent = categoryService.create(new CategoryCreateRequest(
+                null,
+                "Food",
+                "Meals at home",
+                null,
+                null,
+                null,
+                null,
+                1,
+                true,
+                false
+        ));
+
+        CategoryResponse subCategory = categoryService.create(new CategoryCreateRequest(
+                parent.id(),
+                "Groceries",
+                "Supermarket expenses",
+                null,
+                null,
+                null,
+                null,
+                2,
+                true,
+                false
+        ));
+
+        assertEquals(parent.id(), subCategory.parentCategoryId());
+        assertThat(subCategory.subCategories()).isEmpty();
+
+        CategoryResponse loadedParent = categoryService.getById(parent.id());
+        assertThat(loadedParent.subCategories())
+                .hasSize(1)
+                .first()
+                .extracting(CategoryResponse::name)
+                .isEqualTo("Groceries");
+
+        assertThat(categoryService.findAll())
+                .hasSize(1)
+                .first()
+                .extracting(CategoryResponse::subCategories)
+                .satisfies(subCategories -> assertThat(subCategories).hasSize(1));
+    }
+
+    @Test
+    void inactiveCategoriesAreHiddenUnlessRequested() {
+        TenantContext.setTenantId(1L);
+        categoryService.create(new CategoryCreateRequest(
+                null,
+                "Active A",
+                null,
+                null,
+                null,
+                null,
+                null,
+                2,
+                true,
+                false
+        ));
+        categoryService.create(new CategoryCreateRequest(
+                null,
+                "Inactive B",
+                null,
+                null,
+                null,
+                null,
+                null,
+                1,
+                false,
+                false
+        ));
+        categoryService.create(new CategoryCreateRequest(
+                null,
+                "Active C",
+                null,
+                null,
+                null,
+                null,
+                null,
+                1,
+                true,
+                false
+        ));
+
+        assertThat(categoryService.findAll())
+                .extracting(CategoryResponse::name)
+                .containsExactly("Active C", "Active A");
+
+        assertThat(categoryService.findAll(true))
+                .extracting(CategoryResponse::name)
+                .containsExactly("Active C", "Inactive B", "Active A");
+    }
+
+    @Test
+    void parentCategoryMustBelongToTheCurrentTenant() {
+        TenantContext.setTenantId(1L);
+        CategoryResponse parent = categoryService.create(new CategoryCreateRequest(
+                null,
+                "Health",
+                null,
+                null,
+                null,
+                null,
+                null,
+                1,
+                true,
+                false
+        ));
+
+        TenantContext.setTenantId(2L);
+        assertThrows(ResourceNotFoundException.class, () -> categoryService.create(new CategoryCreateRequest(
+                parent.id(),
+                "Pharmacy",
+                null,
+                null,
+                null,
+                null,
+                null,
+                1,
+                true,
+                false
+        )));
+    }
+
+    @Test
     void updateAndDeleteCategoryWithinTenant() {
         TenantContext.setTenantId(1L);
         CategoryResponse created = categoryService.create(new CategoryCreateRequest(
+                null,
                 "Subscriptions",
                 "Monthly services",
                 "credit-card",
                 "#222222",
                 "#ffffff",
                 new BigDecimal("49.99"),
+                3,
                 true,
                 false
         ));
 
         CategoryResponse updated = categoryService.update(created.id(), new CategoryCreateRequest(
+                null,
                 "Subscriptions & Apps",
                 "Monthly software subscriptions",
                 "app-store",
                 "#333333",
                 "#fafafa",
                 new BigDecimal("79.99"),
+                4,
                 false,
                 true
         ));
@@ -165,6 +312,38 @@ class CategoryServiceTests {
         assertThat(activityLogRepository.findAll())
                 .extracting(ActivityLog::getTenantId)
                 .containsOnly(1L);
+    }
+
+    @Test
+    void cannotDeleteCategoryThatHasSubcategories() {
+        TenantContext.setTenantId(1L);
+        CategoryResponse parent = categoryService.create(new CategoryCreateRequest(
+                null,
+                "Travel",
+                null,
+                null,
+                null,
+                null,
+                null,
+                1,
+                true,
+                false
+        ));
+
+        categoryService.create(new CategoryCreateRequest(
+                parent.id(),
+                "Flights",
+                null,
+                null,
+                null,
+                null,
+                null,
+                2,
+                true,
+                false
+        ));
+
+        assertThrows(ConflictException.class, () -> categoryService.delete(parent.id()));
     }
 }
 
