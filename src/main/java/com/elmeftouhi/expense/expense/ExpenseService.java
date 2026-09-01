@@ -11,6 +11,7 @@ import com.elmeftouhi.expense.expense.dto.ExpenseStatisticsResponse;
 import com.elmeftouhi.expense.expense.dto.SubscriptionCreateRequest;
 import com.elmeftouhi.expense.expense.dto.SubscriptionResponse;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
+import com.elmeftouhi.expense.security.JwtPrincipal;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
 import com.elmeftouhi.expense.tenantconfig.ConfigurationContext;
@@ -344,7 +345,20 @@ public class ExpenseService {
 
     private Long getCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return auth != null ? Long.parseLong(auth.getName()) : null;
+        if (auth == null) {
+            throw new BadRequestException("Authenticated user not found");
+        }
+
+        Object principal = auth.getPrincipal();
+        if (principal instanceof JwtPrincipal jwtPrincipal) {
+            return jwtPrincipal.userId();
+        }
+
+        try {
+            return Long.parseLong(auth.getName());
+        } catch (NumberFormatException ex) {
+            throw new BadRequestException("Authenticated user id is invalid");
+        }
     }
 
     private ExpenseResponse toResponse(Expense expense) {

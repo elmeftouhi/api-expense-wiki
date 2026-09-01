@@ -2,6 +2,8 @@ package com.elmeftouhi.expense.notification;
 
 import com.elmeftouhi.expense.multitenancy.TenantContext;
 import com.elmeftouhi.expense.notification.dto.NotificationResponse;
+import com.elmeftouhi.expense.security.JwtPrincipal;
+import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -62,8 +64,23 @@ public class NotificationController {
     }
 
     private Long getCurrentUserId() {
-        return Long.parseLong(org.springframework.security.core.context.SecurityContextHolder
-                .getContext().getAuthentication().getName());
+        var authentication = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication();
+
+        if (authentication == null) {
+            throw new BadRequestException("Authenticated user not found");
+        }
+
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof JwtPrincipal jwtPrincipal) {
+            return jwtPrincipal.userId();
+        }
+
+        try {
+            return Long.parseLong(authentication.getName());
+        } catch (NumberFormatException ex) {
+            throw new BadRequestException("Authenticated user id is invalid");
+        }
     }
 }
 

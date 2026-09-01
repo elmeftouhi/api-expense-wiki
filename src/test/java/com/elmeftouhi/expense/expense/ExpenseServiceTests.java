@@ -9,6 +9,7 @@ import com.elmeftouhi.expense.category.CategoryRepository;
 import com.elmeftouhi.expense.expense.dto.ExpenseCreateRequest;
 import com.elmeftouhi.expense.expense.dto.ExpenseResponse;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
+import com.elmeftouhi.expense.security.JwtPrincipal;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
 import com.elmeftouhi.expense.tenantconfig.ConfigurationContext;
@@ -16,6 +17,7 @@ import com.elmeftouhi.expense.tenantconfig.Currency;
 import com.elmeftouhi.expense.tenantconfig.TenantConfiguration;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,6 +25,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ExpenseService Tests")
@@ -53,6 +57,11 @@ class ExpenseServiceTests {
     @BeforeEach
     void setUp() {
         TenantContext.setTenantId(tenantId);
+
+        JwtPrincipal principal = new JwtPrincipal(userId, "test-user", tenantId, Set.of(tenantId));
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(principal, null)
+        );
 
         TenantConfiguration config = new TenantConfiguration();
         config.setCurrency(Currency.USD);
@@ -200,8 +209,13 @@ class ExpenseServiceTests {
     @DisplayName("Should find overdue expenses")
     void testFindOverdueExpenses() {
         // Given
+        Category category = new Category();
+        category.setId(categoryId);
+        category.setName("Food");
+
         Expense overdueExpense = new Expense();
         overdueExpense.setId(1L);
+        overdueExpense.setCategory(category);
         overdueExpense.setStatus(ExpenseStatus.PENDING);
         overdueExpense.setDueDate(LocalDate.of(2026, 8, 15));
         overdueExpense.assignTenantId(tenantId);

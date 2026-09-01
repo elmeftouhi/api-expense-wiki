@@ -1,6 +1,7 @@
 package com.elmeftouhi.expense.expense;
 
 import com.elmeftouhi.expense.expense.dto.ExpenseCreateRequest;
+import com.elmeftouhi.expense.expense.dto.ExpensePageResponse;
 import com.elmeftouhi.expense.expense.dto.ExpenseResponse;
 import com.elmeftouhi.expense.expense.dto.ExpenseStatisticsResponse;
 import com.elmeftouhi.expense.expense.dto.ExpenseStatusChangeRequest;
@@ -36,12 +37,19 @@ public class ExpenseController {
     private final ExpenseService expenseService;
 
     @GetMapping
-    public Page<ExpenseResponse> findAll(
+    public ExpensePageResponse findAll(
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false) Integer month,
             @RequestParam(required = false) Long categoryId,
             @PageableDefault(size = 20, sort = "dueDate", direction = Sort.Direction.DESC) Pageable pageable) {
-        return expenseService.findAll(year, month, categoryId, pageable);
+        Page<ExpenseResponse> pageResult = expenseService.findAll(year, month, categoryId, pageable);
+        return new ExpensePageResponse(
+                pageResult.getContent(),
+                pageResult.getNumber(),
+                pageResult.getSize(),
+                pageResult.getTotalElements(),
+                pageResult.getTotalPages()
+        );
     }
 
     @GetMapping("/{id}")
