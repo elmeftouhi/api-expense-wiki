@@ -5,6 +5,14 @@ This project is a Spring Boot REST API with:
 - tenant isolation (`tenant_id` on tenant-owned tables)
 - tenant switching for users assigned to multiple tenants
 
+## UI handoff docs
+
+For UI generation handoff, use the docs in `docs/ui-handoff/`:
+- `docs/ui-handoff/README.md`
+- `docs/ui-handoff/API_REFERENCE.md`
+- `docs/ui-handoff/IMPLEMENTATION_SUMMARY.md`
+- `docs/ui-handoff/FILE_STRUCTURE.md`
+
 ## Architecture (packages)
 
 - `auth`: authentication controllers/services and DTOs

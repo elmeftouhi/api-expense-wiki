@@ -9,6 +9,8 @@ public enum ActivitySubjectType {
     EXERCICE,
     PROVIDER,
     TENANT,
-    AUTH
+    AUTH,
+    EXPENSE,
+    SUBSCRIPTION
 }
 
