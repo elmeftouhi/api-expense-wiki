@@ -101,8 +101,9 @@ public class ExpenseService {
         expense.setAmount(request.amount());
         expense.setCurrency(ConfigurationContext.getCurrency().name());
         expense.setType(request.type() != null ? request.type() : ExpenseType.NORMAL);
-        expense.setStatus(ExpenseStatus.PENDING);
+        expense.setStatus(request.paidDate() != null ? ExpenseStatus.PAID : ExpenseStatus.PENDING);
         expense.setDueDate(request.dueDate());
+        expense.setPaidDate(request.paidDate());
         expense.setPaymentMethod(request.paymentMethod());
         expense.setNotes(request.notes());
 
@@ -126,6 +127,8 @@ public class ExpenseService {
         expense.setDescription(request.description());
         expense.setAmount(request.amount());
         expense.setDueDate(request.dueDate());
+        expense.setPaidDate(request.paidDate());
+        expense.setStatus(request.paidDate() != null ? ExpenseStatus.PAID : ExpenseStatus.PENDING);
         expense.setPaymentMethod(request.paymentMethod());
         expense.setNotes(request.notes());
         expense.setUpdatedAt(Instant.now());
@@ -155,6 +158,10 @@ public class ExpenseService {
         Long tenantId = TenantContext.getRequiredTenantId();
         Expense expense = loadExpense(id, tenantId);
 
+        if (paidDate == null) {
+            throw new BadRequestException("paidDate is required when marking an expense as paid");
+        }
+
         if (expense.getStatus() == ExpenseStatus.PAID) {
             throw new BadRequestException("Expense is already marked as paid");
         }
@@ -172,6 +179,10 @@ public class ExpenseService {
     public ExpenseResponse changeStatus(Long id, ExpenseStatus newStatus, LocalDate paidDate) {
         Long tenantId = TenantContext.getRequiredTenantId();
         Expense expense = loadExpense(id, tenantId);
+
+        if (newStatus == ExpenseStatus.PAID && paidDate == null) {
+            throw new BadRequestException("paidDate is required when changing status to PAID");
+        }
 
         if (newStatus == ExpenseStatus.PAID && paidDate != null) {
             expense.markAsPaid(paidDate);

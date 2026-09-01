@@ -20,6 +20,7 @@ public record ExpenseCreateRequest(
 
         @NotNull(message = "Due date is required")
         LocalDate dueDate,
+        LocalDate paidDate,
 
         ExpenseType type,
 

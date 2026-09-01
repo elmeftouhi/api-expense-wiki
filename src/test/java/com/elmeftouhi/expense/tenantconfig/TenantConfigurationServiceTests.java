@@ -5,7 +5,6 @@ import static org.mockito.Mockito.*;
 
 import com.elmeftouhi.expense.multitenancy.TenantContext;
 import com.elmeftouhi.expense.shared.exception.ConflictException;
-import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
 import com.elmeftouhi.expense.tenantconfig.dto.TenantConfigurationRequest;
 import com.elmeftouhi.expense.tenantconfig.dto.TenantConfigurationResponse;
 import java.util.Optional;
@@ -32,6 +31,7 @@ class TenantConfigurationServiceTests {
     @BeforeEach
     void setUp() {
         TenantContext.setTenantId(tenantId);
+        configService.invalidateCache(tenantId);
     }
 
     @Test
@@ -59,13 +59,57 @@ class TenantConfigurationServiceTests {
     }
 
     @Test
-    @DisplayName("Should throw exception when configuration not found")
+    @DisplayName("Should auto-create configuration when not found")
     void testGetConfigurationNotFound() {
         // Given
-        when(configRepository.findByTenantId(tenantId)).thenReturn(Optional.empty());
+        TenantConfiguration config = new TenantConfiguration();
+        config.setId(10L);
+        config.assignTenantId(tenantId);
 
-        // When & Then
-        assertThrows(ResourceNotFoundException.class, () -> configService.getConfiguration());
+        when(configRepository.findByTenantId(tenantId)).thenReturn(Optional.empty());
+        when(configRepository.save(any(TenantConfiguration.class))).thenReturn(config);
+
+        // When
+        TenantConfigurationResponse response = configService.getConfiguration();
+
+        // Then
+        assertNotNull(response);
+        assertEquals(tenantId, response.tenantId());
+        verify(configRepository).save(any(TenantConfiguration.class));
+    }
+
+    @Test
+    @DisplayName("Should auto-create then update configuration when not found")
+    void testUpdateConfigurationAutoCreatesWhenMissing() {
+        // Given
+        TenantConfiguration config = new TenantConfiguration();
+        config.setId(20L);
+        config.assignTenantId(tenantId);
+
+        TenantConfigurationRequest request = new TenantConfigurationRequest(
+                Currency.EUR,
+                2,
+                Language.FR,
+                "Europe/Paris",
+                "dd/MM/yyyy",
+                TimeFormat.FORMAT_24H,
+                WeekStartDay.MONDAY,
+                80,
+                "[\"IN_APP\"]",
+                "[3,7]",
+                "NONE",
+                "CALENDAR_MONTH"
+        );
+
+        when(configRepository.findByTenantId(tenantId)).thenReturn(Optional.empty());
+        when(configRepository.save(any(TenantConfiguration.class))).thenReturn(config);
+
+        // When
+        TenantConfigurationResponse response = configService.updateConfiguration(request);
+
+        // Then
+        assertNotNull(response);
+        verify(configRepository, times(2)).save(any(TenantConfiguration.class));
     }
 
     @Test

@@ -2,7 +2,6 @@ package com.elmeftouhi.expense.tenantconfig;
 
 import com.elmeftouhi.expense.multitenancy.TenantContext;
 import com.elmeftouhi.expense.shared.exception.ConflictException;
-import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
 import com.elmeftouhi.expense.tenantconfig.dto.TenantConfigurationRequest;
 import com.elmeftouhi.expense.tenantconfig.dto.TenantConfigurationResponse;
 import java.time.Instant;
@@ -87,13 +86,19 @@ public class TenantConfigurationService {
             return cached.value;
         }
 
-        // Load from database
+        // Load from database or bootstrap defaults on first access.
         TenantConfiguration config = configRepository.findByTenantId(tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Tenant configuration not found"));
+                .orElseGet(() -> createDefaultConfigurationEntity(tenantId));
 
         // Update cache
         CONFIG_CACHE.put(tenantId, new CacheEntry<>(config));
         return config;
+    }
+
+    private TenantConfiguration createDefaultConfigurationEntity(Long tenantId) {
+        TenantConfiguration config = new TenantConfiguration();
+        config.assignTenantId(tenantId);
+        return configRepository.save(config);
     }
 
     public void invalidateCache(Long tenantId) {

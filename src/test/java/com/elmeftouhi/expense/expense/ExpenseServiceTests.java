@@ -78,6 +78,7 @@ class ExpenseServiceTests {
                 "Test Expense",
                 BigDecimal.valueOf(100.00),
                 LocalDate.of(2026, 9, 30),
+                null,
                 ExpenseType.NORMAL,
                 "CARD",
                 "Test notes"
@@ -96,6 +97,7 @@ class ExpenseServiceTests {
         savedExpense.setType(ExpenseType.NORMAL);
         savedExpense.setStatus(ExpenseStatus.PENDING);
         savedExpense.setDueDate(request.dueDate());
+        savedExpense.setPaidDate(request.paidDate());
 
         when(categoryRepository.findByIdAndTenantId(categoryId, tenantId)).thenReturn(java.util.Optional.of(category));
         when(expenseRepository.save(any(Expense.class))).thenReturn(savedExpense);
@@ -109,6 +111,7 @@ class ExpenseServiceTests {
         assertEquals("Test Expense", response.description());
         assertEquals(BigDecimal.valueOf(100.00), response.amount());
         assertEquals(ExpenseStatus.PENDING, response.status());
+        assertNull(response.paidDate());
 
         verify(expenseRepository, times(1)).save(any(Expense.class));
         verify(activityLogService, times(1)).record(any(), any(), any(), any(), any(), any());
@@ -123,6 +126,7 @@ class ExpenseServiceTests {
                 "Test Expense",
                 BigDecimal.valueOf(100.00),
                 LocalDate.of(2026, 9, 30),
+                null,
                 ExpenseType.NORMAL,
                 "CARD",
                 "Test notes"
@@ -132,6 +136,48 @@ class ExpenseServiceTests {
 
         // When & Then
         assertThrows(ResourceNotFoundException.class, () -> expenseService.create(request));
+    }
+
+    @Test
+    @DisplayName("Should allow creating expense without paidDate")
+    void testCreateExpenseWithoutPaidDate() {
+        // Given
+        ExpenseCreateRequest request = new ExpenseCreateRequest(
+                categoryId,
+                "Test Expense",
+                BigDecimal.valueOf(100.00),
+                LocalDate.of(2026, 9, 30),
+                null,
+                ExpenseType.SUBSCRIPTION,
+                "CARD",
+                "Test notes"
+        );
+
+        Category category = new Category();
+        category.setId(categoryId);
+        category.setName("Food");
+
+        Expense savedExpense = new Expense();
+        savedExpense.setId(2L);
+        savedExpense.setCategory(category);
+        savedExpense.setDescription(request.description());
+        savedExpense.setAmount(request.amount());
+        savedExpense.setCurrency("USD");
+        savedExpense.setType(ExpenseType.SUBSCRIPTION);
+        savedExpense.setStatus(ExpenseStatus.PENDING);
+        savedExpense.setDueDate(request.dueDate());
+        savedExpense.setPaidDate(null);
+
+        when(categoryRepository.findByIdAndTenantId(categoryId, tenantId)).thenReturn(java.util.Optional.of(category));
+        when(expenseRepository.save(any(Expense.class))).thenReturn(savedExpense);
+
+        // When
+        ExpenseResponse response = expenseService.create(request);
+
+        // Then
+        assertNotNull(response);
+        assertEquals(ExpenseStatus.PENDING, response.status());
+        assertNull(response.paidDate());
     }
 
     @Test
@@ -178,6 +224,30 @@ class ExpenseServiceTests {
         // When & Then
         assertThrows(BadRequestException.class,
                 () -> expenseService.markAsPaid(1L, LocalDate.now()));
+    }
+
+    @Test
+    @DisplayName("Should require paidDate when changing status to PAID")
+    void testChangeStatusRequiresPaidDateWhenPaid() {
+        // Given
+        Expense expense = new Expense();
+        expense.setId(1L);
+        expense.setStatus(ExpenseStatus.PENDING);
+        expense.setDescription("Test");
+        expense.setAmount(BigDecimal.valueOf(100));
+        expense.setCurrency("USD");
+        Category category = new Category();
+        category.setId(categoryId);
+        category.setName("Food");
+        expense.setCategory(category);
+        expense.assignTenantId(tenantId);
+
+        when(expenseRepository.findByIdAndTenantId(1L, tenantId))
+                .thenReturn(java.util.Optional.of(expense));
+
+        // When & Then
+        assertThrows(BadRequestException.class,
+                () -> expenseService.changeStatus(1L, ExpenseStatus.PAID, null));
     }
 
     @Test
