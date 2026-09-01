@@ -116,6 +116,18 @@ public class CategoryService {
         logActivity(ActivityAction.DELETE, response, buildActivityMessage("deleted"), buildActivityMetadata(response));
     }
 
+    @Transactional
+    public CategoryResponse switchStatus(Long id) {
+        Long tenantId = TenantContext.getRequiredTenantId();
+        Category category = loadCategory(id, tenantId);
+        category.setActive(!category.isActive());
+        Category saved = categoryRepository.save(category);
+        CategoryResponse response = toResponse(loadCategory(saved.getId(), tenantId), true);
+        String statusMessage = response.active() ? "activated" : "deactivated";
+        logActivity(ActivityAction.UPDATE, response, buildActivityMessage(statusMessage), buildActivityMetadata(response));
+        return response;
+    }
+
     private Category loadCategory(Long id, Long tenantId) {
         return categoryRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
@@ -300,4 +312,3 @@ public class CategoryService {
         return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }
-
