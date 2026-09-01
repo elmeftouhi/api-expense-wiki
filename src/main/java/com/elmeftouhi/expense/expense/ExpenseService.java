@@ -43,7 +43,7 @@ public class ExpenseService {
     private final ActivityLogService activityLogService;
 
     @Transactional(readOnly = true)
-    public Page<ExpenseResponse> findAll(Integer year, Integer month, Long categoryId, Pageable pageable) {
+    public Page<ExpenseResponse> findAll(Integer year, Integer month, Long categoryId, ExpenseType type, Pageable pageable) {
         Long tenantId = TenantContext.getRequiredTenantId();
 
         if (month != null && (month < 1 || month > 12)) {
@@ -74,7 +74,7 @@ public class ExpenseService {
             endDate = targetMonth.atEndOfMonth();
         }
 
-        return expenseRepository.findPageByTenantAndFilters(tenantId, startDate, endDate, categoryId, pageable)
+        return expenseRepository.findPageByTenantAndFilters(tenantId, startDate, endDate, categoryId, type, pageable)
                 .map(this::toResponse);
     }
 

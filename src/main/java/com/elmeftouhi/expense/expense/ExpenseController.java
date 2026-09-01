@@ -41,8 +41,9 @@ public class ExpenseController {
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false) Integer month,
             @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) ExpenseType type,
             @PageableDefault(size = 20, sort = "dueDate", direction = Sort.Direction.DESC) Pageable pageable) {
-        Page<ExpenseResponse> pageResult = expenseService.findAll(year, month, categoryId, pageable);
+        Page<ExpenseResponse> pageResult = expenseService.findAll(year, month, categoryId, type, pageable);
         return new ExpensePageResponse(
                 pageResult.getContent(),
                 pageResult.getNumber(),

@@ -33,12 +33,14 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
                 AND e.deleted = false
                 AND e.dueDate BETWEEN :startDate AND :endDate
                 AND (:categoryId IS NULL OR e.category.id = :categoryId)
+                AND (:type IS NULL OR e.type = :type)
             """)
     Page<Expense> findPageByTenantAndFilters(
             @Param("tenantId") Long tenantId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate,
             @Param("categoryId") Long categoryId,
+            @Param("type") ExpenseType type,
             Pageable pageable);
 
     @Query("""
