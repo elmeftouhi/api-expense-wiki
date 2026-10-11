@@ -8,6 +8,7 @@ import com.elmeftouhi.expense.category.Category;
 import com.elmeftouhi.expense.category.CategoryRepository;
 import com.elmeftouhi.expense.expense.dto.ExpenseCreateRequest;
 import com.elmeftouhi.expense.expense.dto.ExpenseResponse;
+import com.elmeftouhi.expense.expense.dto.SubscriptionOccurrenceResponse;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
 import com.elmeftouhi.expense.security.JwtPrincipal;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
@@ -224,6 +225,51 @@ class ExpenseServiceTests {
         // When & Then
         assertThrows(BadRequestException.class,
                 () -> expenseService.markAsPaid(1L, LocalDate.now()));
+    }
+
+    @Test
+    @DisplayName("Should return subscription occurrence history for a subscription expense")
+    void testGetSubscriptionHistory() {
+        // Given
+        Category category = new Category();
+        category.setId(categoryId);
+        category.setName("Food");
+
+        Expense expense = new Expense();
+        expense.setId(1L);
+        expense.setCategory(category);
+        expense.setType(ExpenseType.SUBSCRIPTION);
+        expense.assignTenantId(tenantId);
+
+        ExpenseSubscription subscription = new ExpenseSubscription();
+        subscription.setId(10L);
+        subscription.setExpense(expense);
+        subscription.assignTenantId(tenantId);
+
+        Expense generatedExpense = new Expense();
+        generatedExpense.setId(2L);
+        generatedExpense.setCategory(category);
+        generatedExpense.assignTenantId(tenantId);
+
+        SubscriptionOccurrence occurrence = new SubscriptionOccurrence();
+        occurrence.setId(100L);
+        occurrence.setSubscription(subscription);
+        occurrence.setGeneratedExpense(generatedExpense);
+        occurrence.setOccurrenceDate(LocalDate.of(2026, 9, 1));
+
+        when(expenseRepository.findByIdAndTenantId(1L, tenantId)).thenReturn(java.util.Optional.of(expense));
+        when(subscriptionRepository.findByExpenseId(1L)).thenReturn(java.util.Optional.of(subscription));
+        when(occurrenceRepository.findBySubscriptionIdOrderByOccurrenceDateDesc(10L))
+                .thenReturn(java.util.List.of(occurrence));
+
+        // When
+        java.util.List<SubscriptionOccurrenceResponse> result = expenseService.getSubscriptionHistory(1L);
+
+        // Then
+        assertEquals(1, result.size());
+        assertEquals(100L, result.get(0).id());
+        assertEquals(10L, result.get(0).subscriptionId());
+        assertEquals(2L, result.get(0).generatedExpenseId());
     }
 
     @Test

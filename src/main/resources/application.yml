@@ -3,3 +3,9 @@ spring:
     name: api.expense.wiki
   profiles:
     default: local
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html

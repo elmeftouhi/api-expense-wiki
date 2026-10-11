@@ -9,6 +9,7 @@ import com.elmeftouhi.expense.expense.dto.ExpenseCreateRequest;
 import com.elmeftouhi.expense.expense.dto.ExpenseResponse;
 import com.elmeftouhi.expense.expense.dto.ExpenseStatisticsResponse;
 import com.elmeftouhi.expense.expense.dto.SubscriptionCreateRequest;
+import com.elmeftouhi.expense.expense.dto.SubscriptionOccurrenceResponse;
 import com.elmeftouhi.expense.expense.dto.SubscriptionResponse;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
 import com.elmeftouhi.expense.security.JwtPrincipal;
@@ -132,6 +133,7 @@ public class ExpenseService {
         expense.setPaymentMethod(request.paymentMethod());
         expense.setNotes(request.notes());
         expense.setUpdatedAt(Instant.now());
+        expense.setType(request.type() != null ? request.type() : ExpenseType.NORMAL);
 
         Expense saved = expenseRepository.save(expense);
 
@@ -244,6 +246,26 @@ public class ExpenseService {
                 .orElseThrow(() -> new ResourceNotFoundException("Subscription not found"));
 
         return toResponse(subscription);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SubscriptionOccurrenceResponse> getSubscriptionHistory(Long expenseId) {
+        Long tenantId = TenantContext.getRequiredTenantId();
+        Expense expense = loadExpense(expenseId, tenantId);
+
+        ExpenseSubscription subscription = subscriptionRepository.findByExpenseId(expenseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Subscription not found"));
+
+        return occurrenceRepository.findBySubscriptionIdOrderByOccurrenceDateDesc(subscription.getId())
+                .stream()
+                .map(occurrence -> new SubscriptionOccurrenceResponse(
+                        occurrence.getId(),
+                        occurrence.getSubscription().getId(),
+                        occurrence.getGeneratedExpense().getId(),
+                        occurrence.getOccurrenceDate(),
+                        occurrence.getCreatedAt()
+                ))
+                .toList();
     }
 
     @Transactional
