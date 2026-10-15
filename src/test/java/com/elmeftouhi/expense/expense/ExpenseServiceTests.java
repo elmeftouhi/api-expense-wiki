@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.elmeftouhi.expense.activity.ActivityLogService;
+import com.elmeftouhi.expense.budget.BudgetTrackingService;
 import com.elmeftouhi.expense.category.Category;
 import com.elmeftouhi.expense.category.CategoryRepository;
 import com.elmeftouhi.expense.expense.dto.ExpenseCreateRequest;
@@ -47,6 +48,9 @@ class ExpenseServiceTests {
 
     @Mock
     private ActivityLogService activityLogService;
+
+    @Mock
+    private BudgetTrackingService budgetTrackingService;
 
     @InjectMocks
     private ExpenseService expenseService;

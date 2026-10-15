@@ -1,5 +1,6 @@
 package com.elmeftouhi.expense.category;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -34,10 +35,11 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     Optional<Category> findByTenantIdAndNameIgnoreCase(Long tenantId, String name);
 
+    List<Category> findByTenantIdAndIdIn(Long tenantId, Collection<Long> ids);
+
     @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END FROM Category c WHERE c.tenantId = :tenantId AND c.parentCategory.id = :parentCategoryId")
     boolean existsByTenantIdAndParentCategoryId(
             @Param("tenantId") Long tenantId,
             @Param("parentCategoryId") Long parentCategoryId
     );
 }
-

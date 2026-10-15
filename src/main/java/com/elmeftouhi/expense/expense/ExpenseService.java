@@ -3,6 +3,8 @@ package com.elmeftouhi.expense.expense;
 import com.elmeftouhi.expense.activity.ActivityAction;
 import com.elmeftouhi.expense.activity.ActivityLogService;
 import com.elmeftouhi.expense.activity.ActivitySubjectType;
+import com.elmeftouhi.expense.budget.BudgetTrackingService;
+import com.elmeftouhi.expense.budget.ExpenseBudgetSnapshot;
 import com.elmeftouhi.expense.category.Category;
 import com.elmeftouhi.expense.category.CategoryRepository;
 import com.elmeftouhi.expense.expense.dto.ExpenseCreateRequest;
@@ -42,6 +44,7 @@ public class ExpenseService {
     private final SubscriptionOccurrenceRepository occurrenceRepository;
     private final CategoryRepository categoryRepository;
     private final ActivityLogService activityLogService;
+    private final BudgetTrackingService budgetTrackingService;
 
     @Transactional(readOnly = true)
     public Page<ExpenseResponse> findAll(Integer year, Integer month, Long categoryId, ExpenseType type, Pageable pageable) {
@@ -109,6 +112,7 @@ public class ExpenseService {
         expense.setNotes(request.notes());
 
         Expense saved = expenseRepository.save(expense);
+        budgetTrackingService.applyExpenseCreated(ExpenseBudgetSnapshot.fromExpense(saved));
 
         ExpenseResponse response = toResponse(saved);
         logActivity(ActivityAction.CREATE, response, "Expense created");
@@ -120,6 +124,7 @@ public class ExpenseService {
     public ExpenseResponse update(Long id, ExpenseCreateRequest request) {
         Long tenantId = TenantContext.getRequiredTenantId();
         Expense expense = loadExpense(id, tenantId);
+        ExpenseBudgetSnapshot previousSnapshot = ExpenseBudgetSnapshot.fromExpense(expense);
 
         Category category = categoryRepository.findByIdAndTenantId(request.categoryId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
@@ -136,6 +141,7 @@ public class ExpenseService {
         expense.setType(request.type() != null ? request.type() : ExpenseType.NORMAL);
 
         Expense saved = expenseRepository.save(expense);
+        budgetTrackingService.applyExpenseUpdated(previousSnapshot, ExpenseBudgetSnapshot.fromExpense(saved));
 
         ExpenseResponse response = toResponse(saved);
         logActivity(ActivityAction.UPDATE, response, "Expense updated");
@@ -147,10 +153,12 @@ public class ExpenseService {
     public void delete(Long id) {
         Long tenantId = TenantContext.getRequiredTenantId();
         Expense expense = loadExpense(id, tenantId);
+        ExpenseBudgetSnapshot snapshot = ExpenseBudgetSnapshot.fromExpense(expense);
 
         ExpenseResponse response = toResponse(expense);
         expense.markAsDeleted();
         expenseRepository.save(expense);
+        budgetTrackingService.applyExpenseDeleted(snapshot);
 
         logActivity(ActivityAction.DELETE, response, "Expense deleted");
     }

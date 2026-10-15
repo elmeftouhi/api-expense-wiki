@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.elmeftouhi.expense.activity.ActivityLogService;
+import com.elmeftouhi.expense.budget.BudgetTrackingService;
 import com.elmeftouhi.expense.category.Category;
 import com.elmeftouhi.expense.category.CategoryRepository;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
@@ -47,6 +48,9 @@ class ExpenseServicePagingTests {
 
     @Mock
     private ActivityLogService activityLogService;
+
+    @Mock
+    private BudgetTrackingService budgetTrackingService;
 
     @InjectMocks
     private ExpenseService expenseService;

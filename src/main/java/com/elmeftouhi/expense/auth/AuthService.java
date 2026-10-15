@@ -104,7 +104,7 @@ public class AuthService {
         return buildAuthResponse(user, user.getDefaultTenant().getId());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthResponse switchTenant(Long userId, Long tenantId) {
         AppUser user = appUserRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -112,6 +112,11 @@ public class AuthService {
         if (!userTenantRepository.existsByUserIdAndTenantId(userId, tenantId)) {
             throw new TenantAccessDeniedException("You do not belong to this tenant");
         }
+
+        Tenant selectedTenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant not found"));
+        user.setDefaultTenant(selectedTenant);
+        appUserRepository.save(user);
 
         return buildAuthResponse(user, tenantId);
     }

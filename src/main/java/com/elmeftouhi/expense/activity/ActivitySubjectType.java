@@ -11,6 +11,6 @@ public enum ActivitySubjectType {
     TENANT,
     AUTH,
     EXPENSE,
-    SUBSCRIPTION
+    SUBSCRIPTION,
+    BUDGET
 }
-
