@@ -120,6 +120,37 @@ Use `PUT /v1/customer-categories/{id}/default` to mark a category as default, an
 - `PUT /v1/providers/{id}`
 - `DELETE /v1/providers/{id}`
 
+### Expenses
+
+- `POST /v1/expenses`
+- `GET /v1/expenses`
+- `GET /v1/expenses/{id}`
+- `PUT /v1/expenses/{id}`
+- `DELETE /v1/expenses/{id}`
+- `PATCH /v1/expenses/{id}/status`
+- `PATCH /v1/expenses/{id}/mark-as-paid`
+- `GET /v1/expenses/overdue`
+- `GET /v1/expenses/statistics`
+
+### Subscriptions (independent resource)
+
+- `POST /v1/subscriptions`
+- `GET /v1/subscriptions`
+- `GET /v1/subscriptions/{id}`
+- `PUT /v1/subscriptions/{id}`
+- `POST /v1/subscriptions/{id}/pause`
+- `POST /v1/subscriptions/{id}/resume`
+- `POST /v1/subscriptions/{id}/stop`
+- `GET /v1/subscriptions/{id}/occurrences`
+
+Key behavior:
+- Creating a subscription does not create an expense immediately unless it is already due and picked by scheduler policy.
+- Only expense rows are counted in expense totals and budget tracking.
+- Subscription definitions are not part of the financial ledger.
+- Generated subscription expenses are created as `PENDING` with `dueDate = scheduled billing date`.
+- Scheduling uses tenant timezone and anchored calendar rules (no permanent drift for month-end anchors).
+- Resume requires explicit `nextBillingDate` to avoid implicit paused-period backfill.
+
 ## Example requests and responses
 
 ### Register
@@ -302,14 +333,14 @@ Notes:
 ## Run
 
 ```powershell
-Set-Location "C:\Users\Windows 11\Desktop\Projects\api.facturesimple.ma"
+Set-Location "C:\Users\Windows 11\Desktop\Projects\expense.wiki\api-expense-wiki"
 cmd /c ".\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=local"
 ```
 
 ## Test
 
 ```powershell
-Set-Location "C:\Users\Windows 11\Desktop\Projects\api.facturesimple.ma"
+Set-Location "C:\Users\Windows 11\Desktop\Projects\expense.wiki\api-expense-wiki"
 cmd /c ".\mvnw.cmd test -Dspring.profiles.active=test"
 ```
 

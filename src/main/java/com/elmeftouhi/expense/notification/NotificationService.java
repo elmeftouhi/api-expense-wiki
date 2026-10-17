@@ -1,7 +1,7 @@
 package com.elmeftouhi.expense.notification;
 
 import com.elmeftouhi.expense.expense.Expense;
-import com.elmeftouhi.expense.expense.ExpenseSubscription;
+import com.elmeftouhi.expense.expense.Subscription;
 import com.elmeftouhi.expense.notification.dto.NotificationResponse;
 import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
 import java.util.List;
@@ -55,12 +55,12 @@ public class NotificationService {
 
     @Transactional
     public void sendSubscriptionNotification(
-            ExpenseSubscription subscription,
+            Subscription subscription,
             NotificationType type,
             String message) {
         sendNotification(
                 subscription.getTenantId(),
-                subscription.getExpense().getUserId(),
+                subscription.getOwnerUserId(),
                 type,
                 type.getDescription(),
                 message,

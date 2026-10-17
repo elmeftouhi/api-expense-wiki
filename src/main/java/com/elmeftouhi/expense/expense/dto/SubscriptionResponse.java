@@ -1,21 +1,32 @@
 package com.elmeftouhi.expense.expense.dto;
 
+import com.elmeftouhi.expense.expense.SubscriptionLifecycleStatus;
 import com.elmeftouhi.expense.expense.SubscriptionFrequency;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.Instant;
 
 public record SubscriptionResponse(
         Long id,
-        Long expenseId,
+        String name,
+        String description,
+        Long categoryId,
+        String categoryName,
+        Long ownerUserId,
+        BigDecimal amount,
+        String currency,
         SubscriptionFrequency frequency,
         Integer customIntervalDays,
-        LocalDate nextOccurrenceDate,
+        LocalDate nextBillingDate,
         LocalDate endDate,
-        Integer occurrenceCount,
-        Boolean active,
+        SubscriptionLifecycleStatus status,
+        Integer reminderLeadDays,
+        String paymentMethod,
+        String notes,
         Long tenantId,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        Long version
 ) {
 }
 

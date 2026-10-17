@@ -10,9 +10,6 @@ import com.elmeftouhi.expense.category.CategoryRepository;
 import com.elmeftouhi.expense.expense.dto.ExpenseCreateRequest;
 import com.elmeftouhi.expense.expense.dto.ExpenseResponse;
 import com.elmeftouhi.expense.expense.dto.ExpenseStatisticsResponse;
-import com.elmeftouhi.expense.expense.dto.SubscriptionCreateRequest;
-import com.elmeftouhi.expense.expense.dto.SubscriptionOccurrenceResponse;
-import com.elmeftouhi.expense.expense.dto.SubscriptionResponse;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
 import com.elmeftouhi.expense.security.JwtPrincipal;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
@@ -24,9 +21,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -40,8 +35,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class ExpenseService {
 
     private final ExpenseRepository expenseRepository;
-    private final ExpenseSubscriptionRepository subscriptionRepository;
-    private final SubscriptionOccurrenceRepository occurrenceRepository;
     private final CategoryRepository categoryRepository;
     private final ActivityLogService activityLogService;
     private final BudgetTrackingService budgetTrackingService;
@@ -104,12 +97,17 @@ public class ExpenseService {
         expense.setDescription(request.description());
         expense.setAmount(request.amount());
         expense.setCurrency(ConfigurationContext.getCurrency().name());
-        expense.setType(request.type() != null ? request.type() : ExpenseType.NORMAL);
+        ExpenseType type = request.type() != null ? request.type() : ExpenseType.NORMAL;
+        if (type == ExpenseType.SUBSCRIPTION) {
+            throw new BadRequestException("Use /v1/subscriptions to create recurring subscriptions");
+        }
+        expense.setType(type);
         expense.setStatus(request.paidDate() != null ? ExpenseStatus.PAID : ExpenseStatus.PENDING);
         expense.setDueDate(request.dueDate());
         expense.setPaidDate(request.paidDate());
         expense.setPaymentMethod(request.paymentMethod());
         expense.setNotes(request.notes());
+        expense.setSubscriptionTemplate(false);
 
         Expense saved = expenseRepository.save(expense);
         budgetTrackingService.applyExpenseCreated(ExpenseBudgetSnapshot.fromExpense(saved));
@@ -118,6 +116,29 @@ public class ExpenseService {
         logActivity(ActivityAction.CREATE, response, "Expense created");
 
         return response;
+    }
+
+    @Transactional
+    public Expense createGeneratedExpenseFromSubscription(Subscription subscription, LocalDate scheduledBillingDate) {
+        Expense expense = new Expense();
+        expense.assignTenantId(subscription.getTenantId());
+        expense.setCategory(subscription.getCategory());
+        expense.setUserId(subscription.getOwnerUserId());
+        expense.setDescription(subscription.getDescription() != null ? subscription.getDescription() : subscription.getName());
+        expense.setAmount(subscription.getAmount());
+        expense.setCurrency(subscription.getCurrency());
+        expense.setType(ExpenseType.SUBSCRIPTION);
+        expense.setStatus(ExpenseStatus.PENDING);
+        expense.setDueDate(scheduledBillingDate);
+        expense.setPaymentMethod(subscription.getPaymentMethod());
+        expense.setNotes(subscription.getNotes());
+        expense.setSubscription(subscription);
+        expense.setSubscriptionTemplate(false);
+
+        Expense saved = expenseRepository.save(expense);
+        budgetTrackingService.applyExpenseCreated(ExpenseBudgetSnapshot.fromExpense(saved));
+        logActivity(ActivityAction.CREATE, saved, "Subscription occurrence generated");
+        return saved;
     }
 
     @Transactional
@@ -138,7 +159,11 @@ public class ExpenseService {
         expense.setPaymentMethod(request.paymentMethod());
         expense.setNotes(request.notes());
         expense.setUpdatedAt(Instant.now());
-        expense.setType(request.type() != null ? request.type() : ExpenseType.NORMAL);
+        ExpenseType type = request.type() != null ? request.type() : ExpenseType.NORMAL;
+        if (type == ExpenseType.SUBSCRIPTION && (expense.getType() == null || expense.getType() != ExpenseType.SUBSCRIPTION)) {
+            throw new BadRequestException("Use /v1/subscriptions to define recurring subscriptions");
+        }
+        expense.setType(type);
 
         Expense saved = expenseRepository.save(expense);
         budgetTrackingService.applyExpenseUpdated(previousSnapshot, ExpenseBudgetSnapshot.fromExpense(saved));
@@ -176,8 +201,11 @@ public class ExpenseService {
             throw new BadRequestException("Expense is already marked as paid");
         }
 
+        ExpenseBudgetSnapshot previousSnapshot = ExpenseBudgetSnapshot.fromExpense(expense);
+
         expense.markAsPaid(paidDate);
         Expense saved = expenseRepository.save(expense);
+        budgetTrackingService.applyExpenseUpdated(previousSnapshot, ExpenseBudgetSnapshot.fromExpense(saved));
 
         ExpenseResponse response = toResponse(saved);
         logActivity(ActivityAction.PAYMENT_ADDED, response, "Expense marked as paid");
@@ -194,7 +222,9 @@ public class ExpenseService {
             throw new BadRequestException("paidDate is required when changing status to PAID");
         }
 
-        if (newStatus == ExpenseStatus.PAID && paidDate != null) {
+        ExpenseBudgetSnapshot previousSnapshot = ExpenseBudgetSnapshot.fromExpense(expense);
+
+        if (newStatus == ExpenseStatus.PAID) {
             expense.markAsPaid(paidDate);
         } else {
             expense.setStatus(newStatus);
@@ -202,117 +232,10 @@ public class ExpenseService {
         }
 
         Expense saved = expenseRepository.save(expense);
+        budgetTrackingService.applyExpenseUpdated(previousSnapshot, ExpenseBudgetSnapshot.fromExpense(saved));
 
         ExpenseResponse response = toResponse(saved);
         logActivity(ActivityAction.STATUS_CHANGED, response, "Expense status changed to " + newStatus);
-
-        return response;
-    }
-
-    @Transactional
-    public SubscriptionResponse createSubscription(Long expenseId, SubscriptionCreateRequest request) {
-        Long tenantId = TenantContext.getRequiredTenantId();
-        Expense expense = loadExpense(expenseId, tenantId);
-
-        if (expense.getSubscription() != null) {
-            throw new BadRequestException("This expense already has a subscription");
-        }
-
-        if (expense.getType() != ExpenseType.SUBSCRIPTION) {
-            throw new BadRequestException("Only subscription-type expenses can have subscriptions");
-        }
-
-        ExpenseSubscription subscription = new ExpenseSubscription();
-        subscription.assignTenantId(tenantId);
-        subscription.setExpense(expense);
-        subscription.setFrequency(request.frequency());
-        subscription.setCustomIntervalDays(request.customIntervalDays());
-        subscription.setNextOccurrenceDate(expense.getDueDate().plusDays(
-                request.frequency() == SubscriptionFrequency.CUSTOM
-                    ? request.customIntervalDays()
-                    : request.frequency().getDays()
-        ));
-        subscription.setEndDate(request.endDate());
-        subscription.setActive(true);
-
-        ExpenseSubscription saved = subscriptionRepository.save(subscription);
-        expense.setSubscription(saved);
-        expenseRepository.save(expense);
-
-        SubscriptionResponse response = toResponse(saved);
-        logActivity(ActivityAction.CREATE, expense, "Subscription created");
-
-        return response;
-    }
-
-    @Transactional(readOnly = true)
-    public SubscriptionResponse getSubscription(Long expenseId) {
-        Long tenantId = TenantContext.getRequiredTenantId();
-        loadExpense(expenseId, tenantId);
-
-        ExpenseSubscription subscription = subscriptionRepository.findByExpenseId(expenseId)
-                .orElseThrow(() -> new ResourceNotFoundException("Subscription not found"));
-
-        return toResponse(subscription);
-    }
-
-    @Transactional(readOnly = true)
-    public List<SubscriptionOccurrenceResponse> getSubscriptionHistory(Long expenseId) {
-        Long tenantId = TenantContext.getRequiredTenantId();
-        Expense expense = loadExpense(expenseId, tenantId);
-
-        ExpenseSubscription subscription = subscriptionRepository.findByExpenseId(expenseId)
-                .orElseThrow(() -> new ResourceNotFoundException("Subscription not found"));
-
-        return occurrenceRepository.findBySubscriptionIdOrderByOccurrenceDateDesc(subscription.getId())
-                .stream()
-                .map(occurrence -> new SubscriptionOccurrenceResponse(
-                        occurrence.getId(),
-                        occurrence.getSubscription().getId(),
-                        occurrence.getGeneratedExpense().getId(),
-                        occurrence.getOccurrenceDate(),
-                        occurrence.getCreatedAt()
-                ))
-                .toList();
-    }
-
-    @Transactional
-    public SubscriptionResponse updateSubscription(Long expenseId, SubscriptionCreateRequest request) {
-        Long tenantId = TenantContext.getRequiredTenantId();
-        loadExpense(expenseId, tenantId);
-
-        ExpenseSubscription subscription = subscriptionRepository.findByExpenseId(expenseId)
-                .orElseThrow(() -> new ResourceNotFoundException("Subscription not found"));
-
-        subscription.setFrequency(request.frequency());
-        subscription.setCustomIntervalDays(request.customIntervalDays());
-        subscription.setEndDate(request.endDate());
-        subscription.setUpdatedAt(Instant.now());
-
-        ExpenseSubscription saved = subscriptionRepository.save(subscription);
-
-        SubscriptionResponse response = toResponse(saved);
-        logActivity(ActivityAction.UPDATE, subscription.getExpense(), "Subscription updated");
-
-        return response;
-    }
-
-    @Transactional
-    public SubscriptionResponse toggleSubscriptionStatus(Long expenseId, Boolean active) {
-        Long tenantId = TenantContext.getRequiredTenantId();
-        loadExpense(expenseId, tenantId);
-
-        ExpenseSubscription subscription = subscriptionRepository.findByExpenseId(expenseId)
-                .orElseThrow(() -> new ResourceNotFoundException("Subscription not found"));
-
-        subscription.setActive(active);
-        subscription.setUpdatedAt(Instant.now());
-
-        ExpenseSubscription saved = subscriptionRepository.save(subscription);
-
-        SubscriptionResponse response = toResponse(saved);
-        String action = active ? "Subscription activated" : "Subscription deactivated";
-        logActivity(ActivityAction.STATUS_CHANGED, subscription.getExpense(), action);
 
         return response;
     }
@@ -321,7 +244,7 @@ public class ExpenseService {
     public List<ExpenseResponse> findOverdue() {
         Long tenantId = TenantContext.getRequiredTenantId();
         LocalDate today = LocalDate.now();
-        List<Expense> overdue = expenseRepository.findByTenantIdAndStatusAndDueDateBeforeAndDeletedFalse(
+        List<Expense> overdue = expenseRepository.findByTenantIdAndStatusAndDueDateBeforeAndDeletedFalseAndSubscriptionTemplateFalse(
                 tenantId, ExpenseStatus.PENDING, today);
         return overdue.stream().map(this::toResponse).toList();
     }
@@ -330,24 +253,25 @@ public class ExpenseService {
     public ExpenseStatisticsResponse getStatistics(LocalDate startDate, LocalDate endDate) {
         Long tenantId = TenantContext.getRequiredTenantId();
 
-        BigDecimal totalExpenses = expenseRepository.sumByTenantAndStatusAndDateRange(
+        BigDecimal totalPending = expenseRepository.sumByTenantAndStatusAndDateRange(
                 tenantId, ExpenseStatus.PENDING, startDate, endDate);
         BigDecimal totalPaid = expenseRepository.sumByTenantAndStatusAndDateRange(
                 tenantId, ExpenseStatus.PAID, startDate, endDate);
         BigDecimal totalOverdue = expenseRepository.sumByTenantAndStatusAndDateRange(
                 tenantId, ExpenseStatus.OVERDUE, startDate, endDate);
+        BigDecimal totalExpenses = totalPending.add(totalPaid).add(totalOverdue);
 
         List<Expense> pendingExpenses = expenseRepository
-                .findByTenantIdAndStatusAndDeletedFalse(tenantId, ExpenseStatus.PENDING);
+                .findByTenantIdAndStatusAndDeletedFalseAndSubscriptionTemplateFalse(tenantId, ExpenseStatus.PENDING);
         List<Expense> overdueExpenses = expenseRepository
-                .findByTenantIdAndStatusAndDeletedFalse(tenantId, ExpenseStatus.OVERDUE);
+                .findByTenantIdAndStatusAndDeletedFalseAndSubscriptionTemplateFalse(tenantId, ExpenseStatus.OVERDUE);
 
         List<ExpenseStatisticsResponse.CategorySummary> byCategory = buildCategorySummary(tenantId, startDate, endDate);
 
         return new ExpenseStatisticsResponse(
                 totalExpenses,
                 totalPaid,
-                totalPaid,
+                totalPending,
                 totalOverdue,
                 overdueExpenses.size(),
                 pendingExpenses.size(),
@@ -380,7 +304,7 @@ public class ExpenseService {
 
     private Expense loadExpense(Long id, Long tenantId) {
         return expenseRepository.findByIdAndTenantId(id, tenantId)
-                .filter(e -> !e.getDeleted())
+                .filter(e -> !e.getDeleted() && !e.getSubscriptionTemplate())
                 .orElseThrow(() -> new ResourceNotFoundException("Expense not found"));
     }
 
@@ -424,21 +348,6 @@ public class ExpenseService {
         );
     }
 
-    private SubscriptionResponse toResponse(ExpenseSubscription subscription) {
-        return new SubscriptionResponse(
-                subscription.getId(),
-                subscription.getExpense().getId(),
-                subscription.getFrequency(),
-                subscription.getCustomIntervalDays(),
-                subscription.getNextOccurrenceDate(),
-                subscription.getEndDate(),
-                subscription.getOccurrenceCount(),
-                subscription.getActive(),
-                subscription.getTenantId(),
-                subscription.getCreatedAt(),
-                subscription.getUpdatedAt()
-        );
-    }
 
     private void logActivity(ActivityAction action, ExpenseResponse expense, String message) {
         activityLogService.record(

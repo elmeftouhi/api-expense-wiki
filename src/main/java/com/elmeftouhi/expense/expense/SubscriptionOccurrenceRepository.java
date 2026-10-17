@@ -2,6 +2,9 @@ package com.elmeftouhi.expense.expense;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -10,11 +13,22 @@ public interface SubscriptionOccurrenceRepository extends JpaRepository<Subscrip
 
     List<SubscriptionOccurrence> findBySubscriptionId(Long subscriptionId);
 
-    List<SubscriptionOccurrence> findBySubscriptionIdOrderByOccurrenceDateDesc(Long subscriptionId);
+    Page<SubscriptionOccurrence> findBySubscriptionIdAndTenantIdOrderByScheduledBillingDateDesc(
+            Long subscriptionId,
+            Long tenantId,
+            Pageable pageable);
 
-    List<SubscriptionOccurrence> findByTenantIdAndOccurrenceDateBetween(
+    List<SubscriptionOccurrence> findByTenantIdAndScheduledBillingDateBetween(
             Long tenantId, LocalDate startDate, LocalDate endDate);
 
-    boolean existsBySubscriptionIdAndOccurrenceDate(Long subscriptionId, LocalDate occurrenceDate);
+    boolean existsByTenantIdAndSubscriptionIdAndScheduledBillingDate(
+            Long tenantId,
+            Long subscriptionId,
+            LocalDate scheduledBillingDate);
+
+    Optional<SubscriptionOccurrence> findByTenantIdAndSubscriptionIdAndScheduledBillingDate(
+            Long tenantId,
+            Long subscriptionId,
+            LocalDate scheduledBillingDate);
 }
 

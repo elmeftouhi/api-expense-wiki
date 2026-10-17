@@ -12,7 +12,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -84,8 +83,12 @@ public class Expense extends BaseTenantAwareEntity {
     @Column(name = "is_deleted", nullable = false)
     private Boolean deleted = false;
 
-    @OneToOne(mappedBy = "expense", fetch = FetchType.LAZY)
-    private ExpenseSubscription subscription;
+    @Column(name = "is_subscription_template", nullable = false)
+    private Boolean subscriptionTemplate = false;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "subscription_id")
+    private Subscription subscription;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();

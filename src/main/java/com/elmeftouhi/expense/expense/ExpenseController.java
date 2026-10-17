@@ -5,9 +5,6 @@ import com.elmeftouhi.expense.expense.dto.ExpensePageResponse;
 import com.elmeftouhi.expense.expense.dto.ExpenseResponse;
 import com.elmeftouhi.expense.expense.dto.ExpenseStatisticsResponse;
 import com.elmeftouhi.expense.expense.dto.ExpenseStatusChangeRequest;
-import com.elmeftouhi.expense.expense.dto.SubscriptionCreateRequest;
-import com.elmeftouhi.expense.expense.dto.SubscriptionOccurrenceResponse;
-import com.elmeftouhi.expense.expense.dto.SubscriptionResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -38,7 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/v1/expenses")
 @RequiredArgsConstructor
-@Tag(name = "Expenses", description = "Manage expenses, status changes, statistics, and recurring subscriptions")
+@Tag(name = "Expenses", description = "Manage expenses, status changes, and statistics")
 public class ExpenseController {
 
     private final ExpenseService expenseService;
@@ -160,68 +157,5 @@ public class ExpenseController {
         return expenseService.getStatistics(start, end);
     }
 
-    // Subscription endpoints
-    @PostMapping("/{expenseId}/subscriptions")
-    @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Create subscription for expense", description = "Creates recurring subscription settings for an expense")
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Subscription created successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid request payload"),
-            @ApiResponse(responseCode = "404", description = "Expense not found")
-    })
-    public SubscriptionResponse createSubscription(
-            @Parameter(description = "ID of the expense", example = "42")
-            @PathVariable Long expenseId,
-            @Valid @RequestBody SubscriptionCreateRequest request) {
-        return expenseService.createSubscription(expenseId, request);
-    }
-
-    @GetMapping("/{expenseId}/subscriptions")
-    @Operation(summary = "Get subscription", description = "Returns recurring subscription settings for an expense")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Subscription returned successfully"),
-            @ApiResponse(responseCode = "404", description = "Subscription or expense not found")
-    })
-    public SubscriptionResponse getSubscription(@PathVariable Long expenseId) {
-        return expenseService.getSubscription(expenseId);
-    }
-
-    @GetMapping("/{expenseId}/subscriptions/history")
-    @Operation(summary = "Get subscription history", description = "Returns execution history for an expense subscription")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Subscription history returned successfully"),
-            @ApiResponse(responseCode = "404", description = "Subscription or expense not found")
-    })
-    public List<SubscriptionOccurrenceResponse> getSubscriptionHistory(@PathVariable Long expenseId) {
-        return expenseService.getSubscriptionHistory(expenseId);
-    }
-
-    @PutMapping("/{expenseId}/subscriptions")
-    @Operation(summary = "Update subscription", description = "Updates recurring subscription settings for an expense")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Subscription updated successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid request payload"),
-            @ApiResponse(responseCode = "404", description = "Subscription or expense not found")
-    })
-    public SubscriptionResponse updateSubscription(
-            @Parameter(description = "ID of the expense", example = "42")
-            @PathVariable Long expenseId,
-            @Valid @RequestBody SubscriptionCreateRequest request) {
-        return expenseService.updateSubscription(expenseId, request);
-    }
-
-    @PatchMapping("/{expenseId}/subscriptions/status")
-    @Operation(summary = "Toggle subscription status", description = "Activates or deactivates an expense subscription")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Subscription status updated successfully"),
-            @ApiResponse(responseCode = "404", description = "Subscription or expense not found")
-    })
-    public SubscriptionResponse toggleSubscriptionStatus(
-            @Parameter(description = "ID of the expense", example = "42")
-            @PathVariable Long expenseId,
-            @Parameter(description = "Set true to activate, false to deactivate", example = "true")
-            @RequestParam Boolean active) {
-        return expenseService.toggleSubscriptionStatus(expenseId, active);
-    }
 }
 

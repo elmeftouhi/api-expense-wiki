@@ -2,9 +2,17 @@ package com.elmeftouhi.expense.scheduler;
 
 import com.elmeftouhi.expense.expense.Expense;
 import com.elmeftouhi.expense.expense.ExpenseRepository;
+import com.elmeftouhi.expense.expense.ExpenseStatus;
+import com.elmeftouhi.expense.multitenancy.TenantContext;
 import com.elmeftouhi.expense.notification.NotificationService;
 import com.elmeftouhi.expense.notification.NotificationType;
+import com.elmeftouhi.expense.tenant.Tenant;
+import com.elmeftouhi.expense.tenant.TenantRepository;
+import com.elmeftouhi.expense.tenantconfig.ConfigurationContext;
+import com.elmeftouhi.expense.tenantconfig.TenantConfiguration;
+import com.elmeftouhi.expense.tenantconfig.TenantConfigurationService;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,42 +27,50 @@ public class UpcomingExpenseNotificationScheduler {
 
     private final ExpenseRepository expenseRepository;
     private final NotificationService notificationService;
+    private final TenantRepository tenantRepository;
+    private final TenantConfigurationService tenantConfigurationService;
 
     @Scheduled(cron = "0 0 9 * * *") // Daily at 9:00 AM
-    @Transactional
     public void sendUpcomingExpenseNotifications() {
         log.info("Starting upcoming expense notification task");
 
-        try {
-            LocalDate today = LocalDate.now();
-            LocalDate tomorrow = today.plusDays(1);
+        List<Tenant> tenants = tenantRepository.findAll();
+        for (Tenant tenant : tenants) {
+            processTenant(tenant.getId());
+        }
 
-            // Note: This would need proper multi-tenant iteration in production
-            // For now, this is a placeholder that needs tenant context
+        log.info("Upcoming expense notification task completed");
+    }
+
+    @Transactional
+    public void processTenant(Long tenantId) {
+        TenantConfiguration tenantConfiguration = tenantConfigurationService.loadConfiguration(tenantId);
+        TenantContext.setTenantId(tenantId);
+        ConfigurationContext.setConfiguration(tenantConfiguration);
+        try {
+            LocalDate today = LocalDate.now(ZoneId.of(tenantConfiguration.getTimezone()));
+            LocalDate tomorrow = today.plusDays(1);
             List<Expense> upcomingExpenses = expenseRepository
-                    .findByTenantIdAndDueDateBetweenAndDeletedFalse(null, today, tomorrow);
+                    .findByTenantIdAndStatusAndDueDateBetweenAndDeletedFalseAndSubscriptionTemplateFalse(
+                            tenantId,
+                            ExpenseStatus.PENDING,
+                            today,
+                            tomorrow);
 
             for (Expense expense : upcomingExpenses) {
-                try {
-                    // Send notification
-                    notificationService.sendExpenseNotification(
-                            expense,
-                            NotificationType.EXPENSE_DUE_SOON,
-                            "Reminder: Your expense '" + expense.getDescription() + "' is due tomorrow. " +
-                                    "Amount: " + expense.getAmount() + " " + expense.getCurrency()
-                    );
-
-                    log.debug("Sent upcoming notification for expense {}", expense.getId());
-
-                } catch (Exception e) {
-                    log.error("Error processing upcoming expense {}", expense.getId(), e);
-                }
+                notificationService.sendExpenseNotification(
+                        expense,
+                        NotificationType.EXPENSE_DUE_SOON,
+                        "Reminder: Your expense '" + expense.getDescription() + "' is due tomorrow. " +
+                                "Amount: " + expense.getAmount() + " " + expense.getCurrency()
+                );
             }
-
-            log.info("Upcoming expense notification task completed. Processed {} expenses", upcomingExpenses.size());
-
-        } catch (Exception e) {
-            log.error("Error in upcoming expense notification scheduler", e);
+            log.info("Processed {} upcoming expense reminders for tenant {}", upcomingExpenses.size(), tenantId);
+        } catch (Exception ex) {
+            log.error("Error while processing upcoming reminders for tenant {}", tenantId, ex);
+        } finally {
+            ConfigurationContext.clear();
+            TenantContext.clear();
         }
     }
 }

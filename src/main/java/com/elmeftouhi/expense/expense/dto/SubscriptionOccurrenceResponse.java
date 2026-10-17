@@ -1,13 +1,20 @@
 package com.elmeftouhi.expense.expense.dto;
 
+import com.elmeftouhi.expense.expense.ExpenseStatus;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 
 public record SubscriptionOccurrenceResponse(
         Long id,
         Long subscriptionId,
+        LocalDate scheduledBillingDate,
         Long generatedExpenseId,
-        LocalDate occurrenceDate,
+        BigDecimal expenseAmount,
+        String expenseCurrency,
+        ExpenseStatus expenseStatus,
+        LocalDate expenseDueDate,
+        LocalDate expensePaidDate,
         Instant createdAt
 ) {
 }

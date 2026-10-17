@@ -9,7 +9,6 @@ import com.elmeftouhi.expense.category.Category;
 import com.elmeftouhi.expense.category.CategoryRepository;
 import com.elmeftouhi.expense.expense.dto.ExpenseCreateRequest;
 import com.elmeftouhi.expense.expense.dto.ExpenseResponse;
-import com.elmeftouhi.expense.expense.dto.SubscriptionOccurrenceResponse;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
 import com.elmeftouhi.expense.security.JwtPrincipal;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
@@ -153,7 +152,7 @@ class ExpenseServiceTests {
                 BigDecimal.valueOf(100.00),
                 LocalDate.of(2026, 9, 30),
                 null,
-                ExpenseType.SUBSCRIPTION,
+                ExpenseType.NORMAL,
                 "CARD",
                 "Test notes"
         );
@@ -168,7 +167,7 @@ class ExpenseServiceTests {
         savedExpense.setDescription(request.description());
         savedExpense.setAmount(request.amount());
         savedExpense.setCurrency("USD");
-        savedExpense.setType(ExpenseType.SUBSCRIPTION);
+        savedExpense.setType(ExpenseType.NORMAL);
         savedExpense.setStatus(ExpenseStatus.PENDING);
         savedExpense.setDueDate(request.dueDate());
         savedExpense.setPaidDate(null);
@@ -183,6 +182,28 @@ class ExpenseServiceTests {
         assertNotNull(response);
         assertEquals(ExpenseStatus.PENDING, response.status());
         assertNull(response.paidDate());
+    }
+
+    @Test
+    @DisplayName("Should reject creating subscription definitions through expense API")
+    void testRejectSubscriptionTypeFromExpenseCreate() {
+        ExpenseCreateRequest request = new ExpenseCreateRequest(
+                categoryId,
+                "Template",
+                BigDecimal.valueOf(15),
+                LocalDate.of(2026, 10, 31),
+                null,
+                ExpenseType.SUBSCRIPTION,
+                "CARD",
+                null
+        );
+
+        Category category = new Category();
+        category.setId(categoryId);
+        when(categoryRepository.findByIdAndTenantId(categoryId, tenantId)).thenReturn(java.util.Optional.of(category));
+
+        assertThrows(BadRequestException.class, () -> expenseService.create(request));
+        verify(expenseRepository, never()).save(any(Expense.class));
     }
 
     @Test
@@ -213,6 +234,7 @@ class ExpenseServiceTests {
         assertEquals(ExpenseStatus.PAID, response.status());
 
         verify(expenseRepository, times(1)).save(any(Expense.class));
+        verify(budgetTrackingService, times(1)).applyExpenseUpdated(any(), any());
     }
 
     @Test
@@ -229,51 +251,6 @@ class ExpenseServiceTests {
         // When & Then
         assertThrows(BadRequestException.class,
                 () -> expenseService.markAsPaid(1L, LocalDate.now()));
-    }
-
-    @Test
-    @DisplayName("Should return subscription occurrence history for a subscription expense")
-    void testGetSubscriptionHistory() {
-        // Given
-        Category category = new Category();
-        category.setId(categoryId);
-        category.setName("Food");
-
-        Expense expense = new Expense();
-        expense.setId(1L);
-        expense.setCategory(category);
-        expense.setType(ExpenseType.SUBSCRIPTION);
-        expense.assignTenantId(tenantId);
-
-        ExpenseSubscription subscription = new ExpenseSubscription();
-        subscription.setId(10L);
-        subscription.setExpense(expense);
-        subscription.assignTenantId(tenantId);
-
-        Expense generatedExpense = new Expense();
-        generatedExpense.setId(2L);
-        generatedExpense.setCategory(category);
-        generatedExpense.assignTenantId(tenantId);
-
-        SubscriptionOccurrence occurrence = new SubscriptionOccurrence();
-        occurrence.setId(100L);
-        occurrence.setSubscription(subscription);
-        occurrence.setGeneratedExpense(generatedExpense);
-        occurrence.setOccurrenceDate(LocalDate.of(2026, 9, 1));
-
-        when(expenseRepository.findByIdAndTenantId(1L, tenantId)).thenReturn(java.util.Optional.of(expense));
-        when(subscriptionRepository.findByExpenseId(1L)).thenReturn(java.util.Optional.of(subscription));
-        when(occurrenceRepository.findBySubscriptionIdOrderByOccurrenceDateDesc(10L))
-                .thenReturn(java.util.List.of(occurrence));
-
-        // When
-        java.util.List<SubscriptionOccurrenceResponse> result = expenseService.getSubscriptionHistory(1L);
-
-        // Then
-        assertEquals(1, result.size());
-        assertEquals(100L, result.get(0).id());
-        assertEquals(10L, result.get(0).subscriptionId());
-        assertEquals(2L, result.get(0).generatedExpenseId());
     }
 
     @Test
@@ -298,6 +275,37 @@ class ExpenseServiceTests {
         // When & Then
         assertThrows(BadRequestException.class,
                 () -> expenseService.changeStatus(1L, ExpenseStatus.PAID, null));
+    }
+
+    @Test
+    @DisplayName("Should change status and update budget tracking")
+    void testChangeStatusUpdatesBudgetTracking() {
+        // Given
+        Category category = new Category();
+        category.setId(categoryId);
+        category.setName("Food");
+
+        Expense expense = new Expense();
+        expense.setId(1L);
+        expense.setStatus(ExpenseStatus.PENDING);
+        expense.setDescription("Test");
+        expense.setAmount(BigDecimal.valueOf(100));
+        expense.setCurrency("USD");
+        expense.setCategory(category);
+        expense.setDueDate(LocalDate.of(2026, 9, 10));
+        expense.assignTenantId(tenantId);
+
+        when(expenseRepository.findByIdAndTenantId(1L, tenantId))
+                .thenReturn(java.util.Optional.of(expense));
+        when(expenseRepository.save(any(Expense.class))).thenReturn(expense);
+
+        // When
+        ExpenseResponse response = expenseService.changeStatus(1L, ExpenseStatus.OVERDUE, null);
+
+        // Then
+        assertNotNull(response);
+        assertEquals(ExpenseStatus.OVERDUE, response.status());
+        verify(budgetTrackingService, times(1)).applyExpenseUpdated(any(), any());
     }
 
     @Test
@@ -340,7 +348,7 @@ class ExpenseServiceTests {
         overdueExpense.setDueDate(LocalDate.of(2026, 8, 15));
         overdueExpense.assignTenantId(tenantId);
 
-        when(expenseRepository.findByTenantIdAndStatusAndDueDateBeforeAndDeletedFalse(
+        when(expenseRepository.findByTenantIdAndStatusAndDueDateBeforeAndDeletedFalseAndSubscriptionTemplateFalse(
                 tenantId, ExpenseStatus.PENDING, LocalDate.now()))
                 .thenReturn(java.util.List.of(overdueExpense));
 
