@@ -1,7 +1,7 @@
 package com.elmeftouhi.expense.security;
 
-import com.elmeftouhi.expense.user.AppUser;
-import com.elmeftouhi.expense.user.AppUserRepository;
+import com.elmeftouhi.expense.user.entity.AppUser;
+import com.elmeftouhi.expense.user.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;

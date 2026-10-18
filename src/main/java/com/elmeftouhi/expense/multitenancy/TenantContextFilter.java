@@ -2,7 +2,7 @@ package com.elmeftouhi.expense.multitenancy;
 
 import com.elmeftouhi.expense.security.JwtPrincipal;
 import com.elmeftouhi.expense.tenantconfig.ConfigurationContext;
-import com.elmeftouhi.expense.tenantconfig.TenantConfigurationService;
+import com.elmeftouhi.expense.tenantconfig.service.TenantConfigurationService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

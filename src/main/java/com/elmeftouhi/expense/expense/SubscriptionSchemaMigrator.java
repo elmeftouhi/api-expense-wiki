@@ -1,5 +1,6 @@
 package com.elmeftouhi.expense.expense;
 
+import com.elmeftouhi.expense.expense.entity.Subscription;
 import jakarta.annotation.PostConstruct;
 import java.sql.Date;
 import java.time.Instant;

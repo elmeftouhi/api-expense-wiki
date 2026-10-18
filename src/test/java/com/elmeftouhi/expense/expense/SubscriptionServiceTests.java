@@ -1,14 +1,19 @@
 package com.elmeftouhi.expense.expense;
 
+import com.elmeftouhi.expense.expense.entity.Subscription;
+import com.elmeftouhi.expense.expense.repository.SubscriptionRepository;
+import com.elmeftouhi.expense.expense.repository.SubscriptionOccurrenceRepository;
+import com.elmeftouhi.expense.expense.service.SubscriptionService;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.elmeftouhi.expense.activity.ActivityLogService;
-import com.elmeftouhi.expense.category.Category;
-import com.elmeftouhi.expense.category.CategoryRepository;
+import com.elmeftouhi.expense.activity.service.ActivityLogService;
+import com.elmeftouhi.expense.category.entity.Category;
+import com.elmeftouhi.expense.category.repository.CategoryRepository;
 import com.elmeftouhi.expense.expense.dto.SubscriptionCreateRequest;
 import com.elmeftouhi.expense.expense.dto.SubscriptionResponse;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
@@ -16,11 +21,13 @@ import com.elmeftouhi.expense.security.JwtPrincipal;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import com.elmeftouhi.expense.tenantconfig.ConfigurationContext;
 import com.elmeftouhi.expense.tenantconfig.Currency;
-import com.elmeftouhi.expense.tenantconfig.TenantConfiguration;
+import com.elmeftouhi.expense.tenantconfig.entity.TenantConfiguration;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Optional;
 import java.util.Set;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

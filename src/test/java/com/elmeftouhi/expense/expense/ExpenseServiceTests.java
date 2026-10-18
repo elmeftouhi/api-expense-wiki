@@ -1,12 +1,18 @@
 package com.elmeftouhi.expense.expense;
 
+import com.elmeftouhi.expense.expense.entity.Expense;
+import com.elmeftouhi.expense.expense.repository.ExpenseRepository;
+import com.elmeftouhi.expense.expense.repository.ExpenseSubscriptionRepository;
+import com.elmeftouhi.expense.expense.repository.SubscriptionOccurrenceRepository;
+import com.elmeftouhi.expense.expense.service.ExpenseService;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import com.elmeftouhi.expense.activity.ActivityLogService;
-import com.elmeftouhi.expense.budget.BudgetTrackingService;
-import com.elmeftouhi.expense.category.Category;
-import com.elmeftouhi.expense.category.CategoryRepository;
+import com.elmeftouhi.expense.activity.service.ActivityLogService;
+import com.elmeftouhi.expense.budget.service.BudgetTrackingService;
+import com.elmeftouhi.expense.category.entity.Category;
+import com.elmeftouhi.expense.category.repository.CategoryRepository;
 import com.elmeftouhi.expense.expense.dto.ExpenseCreateRequest;
 import com.elmeftouhi.expense.expense.dto.ExpenseResponse;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
@@ -15,10 +21,12 @@ import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
 import com.elmeftouhi.expense.tenantconfig.ConfigurationContext;
 import com.elmeftouhi.expense.tenantconfig.Currency;
-import com.elmeftouhi.expense.tenantconfig.TenantConfiguration;
+import com.elmeftouhi.expense.tenantconfig.entity.TenantConfiguration;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Set;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

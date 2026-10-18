@@ -1,16 +1,16 @@
 package com.elmeftouhi.expense.scheduler;
 
-import com.elmeftouhi.expense.expense.Expense;
-import com.elmeftouhi.expense.expense.ExpenseRepository;
+import com.elmeftouhi.expense.expense.entity.Expense;
+import com.elmeftouhi.expense.expense.repository.ExpenseRepository;
 import com.elmeftouhi.expense.expense.ExpenseStatus;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
-import com.elmeftouhi.expense.notification.NotificationService;
+import com.elmeftouhi.expense.notification.service.NotificationService;
 import com.elmeftouhi.expense.notification.NotificationType;
-import com.elmeftouhi.expense.tenant.Tenant;
-import com.elmeftouhi.expense.tenant.TenantRepository;
+import com.elmeftouhi.expense.tenant.entity.Tenant;
+import com.elmeftouhi.expense.tenant.repository.TenantRepository;
 import com.elmeftouhi.expense.tenantconfig.ConfigurationContext;
-import com.elmeftouhi.expense.tenantconfig.TenantConfiguration;
-import com.elmeftouhi.expense.tenantconfig.TenantConfigurationService;
+import com.elmeftouhi.expense.tenantconfig.entity.TenantConfiguration;
+import com.elmeftouhi.expense.tenantconfig.service.TenantConfigurationService;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;

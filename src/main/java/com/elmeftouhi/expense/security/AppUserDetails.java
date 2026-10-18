@@ -1,6 +1,6 @@
 package com.elmeftouhi.expense.security;
 
-import com.elmeftouhi.expense.user.AppUser;
+import com.elmeftouhi.expense.user.entity.AppUser;
 import java.util.Collection;
 import java.util.Set;
 import java.util.stream.Collectors;

@@ -1,16 +1,24 @@
 package com.elmeftouhi.expense.expense;
 
+import com.elmeftouhi.expense.expense.entity.SubscriptionReminderDelivery;
+import com.elmeftouhi.expense.expense.repository.SubscriptionRepository;
+import com.elmeftouhi.expense.expense.repository.SubscriptionReminderDeliveryRepository;
+import com.elmeftouhi.expense.expense.service.SubscriptionReminderService;
+import com.elmeftouhi.expense.expense.entity.Subscription;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.elmeftouhi.expense.category.Category;
-import com.elmeftouhi.expense.notification.NotificationService;
+import com.elmeftouhi.expense.category.entity.Category;
+import com.elmeftouhi.expense.notification.service.NotificationService;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

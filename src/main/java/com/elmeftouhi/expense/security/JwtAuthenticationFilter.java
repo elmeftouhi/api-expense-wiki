@@ -1,6 +1,6 @@
 package com.elmeftouhi.expense.security;
 
-import com.elmeftouhi.expense.user.UserTenantRepository;
+import com.elmeftouhi.expense.user.repository.UserTenantRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

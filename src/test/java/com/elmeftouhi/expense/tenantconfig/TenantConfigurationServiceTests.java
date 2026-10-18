@@ -1,5 +1,9 @@
 package com.elmeftouhi.expense.tenantconfig;
 
+import com.elmeftouhi.expense.tenantconfig.entity.TenantConfiguration;
+import com.elmeftouhi.expense.tenantconfig.repository.TenantConfigurationRepository;
+import com.elmeftouhi.expense.tenantconfig.service.TenantConfigurationService;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -7,7 +11,9 @@ import com.elmeftouhi.expense.multitenancy.TenantContext;
 import com.elmeftouhi.expense.shared.exception.ConflictException;
 import com.elmeftouhi.expense.tenantconfig.dto.TenantConfigurationRequest;
 import com.elmeftouhi.expense.tenantconfig.dto.TenantConfigurationResponse;
+
 import java.util.Optional;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

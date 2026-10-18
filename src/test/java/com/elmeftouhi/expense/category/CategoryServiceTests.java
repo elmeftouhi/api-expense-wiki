@@ -1,5 +1,8 @@
 package com.elmeftouhi.expense.category;
 
+import com.elmeftouhi.expense.category.service.CategoryService;
+import com.elmeftouhi.expense.category.repository.CategoryRepository;
+
 import static com.elmeftouhi.expense.activity.ActivityAction.CREATE;
 import static com.elmeftouhi.expense.activity.ActivityAction.DELETE;
 import static com.elmeftouhi.expense.activity.ActivityAction.UPDATE;
@@ -9,8 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.elmeftouhi.expense.activity.ActivityLog;
-import com.elmeftouhi.expense.activity.ActivityLogRepository;
+import com.elmeftouhi.expense.activity.entity.ActivityLog;
+import com.elmeftouhi.expense.activity.repository.ActivityLogRepository;
 import com.elmeftouhi.expense.activity.ActivitySubjectType;
 import com.elmeftouhi.expense.category.dto.CategoryCreateRequest;
 import com.elmeftouhi.expense.category.dto.CategoryResponse;
@@ -18,8 +21,10 @@ import com.elmeftouhi.expense.multitenancy.TenantContext;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import com.elmeftouhi.expense.shared.exception.ConflictException;
 import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
+
 import java.math.BigDecimal;
 import java.util.List;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -1,12 +1,12 @@
 package com.elmeftouhi.expense.scheduler;
 
-import com.elmeftouhi.expense.expense.SubscriptionReminderService;
+import com.elmeftouhi.expense.expense.service.SubscriptionReminderService;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
-import com.elmeftouhi.expense.tenant.Tenant;
-import com.elmeftouhi.expense.tenant.TenantRepository;
+import com.elmeftouhi.expense.tenant.entity.Tenant;
+import com.elmeftouhi.expense.tenant.repository.TenantRepository;
 import com.elmeftouhi.expense.tenantconfig.ConfigurationContext;
-import com.elmeftouhi.expense.tenantconfig.TenantConfiguration;
-import com.elmeftouhi.expense.tenantconfig.TenantConfigurationService;
+import com.elmeftouhi.expense.tenantconfig.entity.TenantConfiguration;
+import com.elmeftouhi.expense.tenantconfig.service.TenantConfigurationService;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import lombok.RequiredArgsConstructor;

@@ -1,6 +1,6 @@
 package com.elmeftouhi.expense.security;
 
-import com.elmeftouhi.expense.user.AppUser;
+import com.elmeftouhi.expense.user.entity.AppUser;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.JwtException;

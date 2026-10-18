@@ -1,5 +1,12 @@
 package com.elmeftouhi.expense.budget;
 
+import com.elmeftouhi.expense.budget.entity.ExpenseBudgetSnapshot;
+import com.elmeftouhi.expense.budget.entity.BudgetPeriodInstance;
+import com.elmeftouhi.expense.budget.repository.BudgetRepository;
+import com.elmeftouhi.expense.budget.repository.BudgetPeriodInstanceRepository;
+import com.elmeftouhi.expense.budget.service.BudgetTrackingService;
+import com.elmeftouhi.expense.budget.entity.Budget;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -9,9 +16,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.elmeftouhi.expense.category.Category;
-import com.elmeftouhi.expense.notification.NotificationService;
+import com.elmeftouhi.expense.category.entity.Category;
+import com.elmeftouhi.expense.notification.service.NotificationService;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -19,6 +27,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

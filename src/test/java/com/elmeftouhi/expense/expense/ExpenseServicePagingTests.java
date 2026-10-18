@@ -1,5 +1,11 @@
 package com.elmeftouhi.expense.expense;
 
+import com.elmeftouhi.expense.expense.entity.Expense;
+import com.elmeftouhi.expense.expense.repository.ExpenseRepository;
+import com.elmeftouhi.expense.expense.repository.ExpenseSubscriptionRepository;
+import com.elmeftouhi.expense.expense.repository.SubscriptionOccurrenceRepository;
+import com.elmeftouhi.expense.expense.service.ExpenseService;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -8,17 +14,19 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.elmeftouhi.expense.activity.ActivityLogService;
-import com.elmeftouhi.expense.budget.BudgetTrackingService;
-import com.elmeftouhi.expense.category.Category;
-import com.elmeftouhi.expense.category.CategoryRepository;
+import com.elmeftouhi.expense.activity.service.ActivityLogService;
+import com.elmeftouhi.expense.budget.service.BudgetTrackingService;
+import com.elmeftouhi.expense.category.entity.Category;
+import com.elmeftouhi.expense.category.repository.CategoryRepository;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
 import com.elmeftouhi.expense.expense.dto.ExpenseResponse;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

@@ -1,5 +1,6 @@
 package com.elmeftouhi.expense.tenantconfig;
 
+import com.elmeftouhi.expense.tenantconfig.entity.TenantConfiguration;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
 
 /**

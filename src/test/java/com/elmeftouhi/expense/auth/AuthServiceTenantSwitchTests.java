@@ -1,12 +1,14 @@
 package com.elmeftouhi.expense.auth;
 
+import com.elmeftouhi.expense.auth.service.AuthService;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.elmeftouhi.expense.auth.dto.AuthResponse;
 import com.elmeftouhi.expense.auth.dto.LoginRequest;
 import com.elmeftouhi.expense.auth.dto.RegisterRequest;
-import com.elmeftouhi.expense.user.AppUser;
-import com.elmeftouhi.expense.user.AppUserRepository;
+import com.elmeftouhi.expense.user.entity.AppUser;
+import com.elmeftouhi.expense.user.repository.AppUserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
