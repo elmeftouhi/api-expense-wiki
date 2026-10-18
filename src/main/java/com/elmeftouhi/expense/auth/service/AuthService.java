@@ -236,6 +236,32 @@ public class AuthService {
         }
     }
 
+    @Transactional
+    public void updateTenantForUser(Long callerUserId, Long tenantId, String tenantName) {
+        AppUser caller = loadUserWithDefaultTenant(callerUserId);
+
+        boolean isGlobalAdmin = caller.getRoles().contains(Role.ADMIN);
+        boolean isTenantAdmin = isGlobalAdmin || hasTenantRole(callerUserId, tenantId, TenantRole.ADMIN);
+        if (!isTenantAdmin) {
+            throw new TenantAccessDeniedException("Only tenant admins can update tenant info");
+        }
+
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant not found"));
+
+        String normalizedTenantName = tenantName.trim();
+        if (tenant.getName().equalsIgnoreCase(normalizedTenantName)) {
+            return;
+        }
+
+        if (tenantRepository.existsByNameIgnoreCase(normalizedTenantName)) {
+            throw new ConflictException("Tenant name already exists");
+        }
+
+        tenant.setName(normalizedTenantName);
+        tenantRepository.save(tenant);
+    }
+
     private AuthResponse buildAuthResponse(AppUser user, Long selectedTenantId) {
         Set<Long> allowedTenantIds = userTenantRepository.findAllByUserId(user.getId())
                 .stream()

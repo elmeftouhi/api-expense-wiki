@@ -9,6 +9,7 @@ import com.elmeftouhi.expense.auth.dto.LoginRequest;
 import com.elmeftouhi.expense.auth.dto.RegisterRequest;
 import com.elmeftouhi.expense.auth.dto.SwitchTenantRequest;
 import com.elmeftouhi.expense.auth.dto.TenantInviteResponse;
+import com.elmeftouhi.expense.auth.dto.UpdateTenantRequest;
 import com.elmeftouhi.expense.security.JwtPrincipal;
 import com.elmeftouhi.expense.security.RateLimitService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,6 +22,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -119,6 +121,16 @@ public class AuthController {
             @PathVariable Long memberUserId
     ) {
         authService.removeTenantMember(principal.userId(), tenantId, memberUserId);
+    }
+
+    @PutMapping("/tenants/{tenantId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void updateTenant(
+            @AuthenticationPrincipal JwtPrincipal principal,
+            @PathVariable Long tenantId,
+            @Valid @RequestBody UpdateTenantRequest request
+    ) {
+        authService.updateTenantForUser(principal.userId(), tenantId, request.tenantName());
     }
 
     private String resolveClientIp(HttpServletRequest request) {
