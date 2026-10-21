@@ -2,10 +2,10 @@ package com.elmeftouhi.expense.expense.service;
 
 import com.elmeftouhi.expense.expense.SubscriptionLifecycleStatus;
 import com.elmeftouhi.expense.expense.entity.Expense;
-import com.elmeftouhi.expense.expense.entity.SubscriptionOccurrence;
+import com.elmeftouhi.expense.expense.entity.SubscriptionPayment;
 import com.elmeftouhi.expense.expense.entity.Subscription;
 import com.elmeftouhi.expense.expense.repository.SubscriptionRepository;
-import com.elmeftouhi.expense.expense.repository.SubscriptionOccurrenceRepository;
+import com.elmeftouhi.expense.expense.repository.SubscriptionPaymentRepository;
 import com.elmeftouhi.expense.notification.service.NotificationService;
 import com.elmeftouhi.expense.notification.NotificationType;
 import java.time.Instant;
@@ -22,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class SubscriptionGenerationService {
 
     private final SubscriptionRepository subscriptionRepository;
-    private final SubscriptionOccurrenceRepository occurrenceRepository;
+    private final SubscriptionPaymentRepository paymentRepository;
     private final ExpenseService expenseService;
     private final NotificationService notificationService;
 
@@ -47,10 +47,15 @@ public class SubscriptionGenerationService {
 
         LocalDate scheduledBillingDate = subscription.getNextBillingDate();
 
-        if (occurrenceRepository.existsByTenantIdAndSubscriptionIdAndScheduledBillingDate(
+        if (paymentRepository.existsByTenantIdAndSubscriptionIdAndScheduledBillingDate(
                 tenantId,
                 subscriptionId,
                 scheduledBillingDate)) {
+            log.info(
+                    "Payment already generated for subscription {} on {}. Skipping to avoid duplicates.",
+                    subscriptionId,
+                    scheduledBillingDate
+            );
             advanceSubscription(subscription);
             return false;
         }
@@ -58,12 +63,12 @@ public class SubscriptionGenerationService {
         try {
             Expense generatedExpense = expenseService.createGeneratedExpenseFromSubscription(subscription, scheduledBillingDate);
 
-            SubscriptionOccurrence occurrence = new SubscriptionOccurrence();
-            occurrence.assignTenantId(tenantId);
-            occurrence.setSubscription(subscription);
-            occurrence.setGeneratedExpense(generatedExpense);
-            occurrence.setScheduledBillingDate(scheduledBillingDate);
-            occurrenceRepository.save(occurrence);
+            SubscriptionPayment payment = new SubscriptionPayment();
+            payment.assignTenantId(tenantId);
+            payment.setSubscription(subscription);
+            payment.setExpense(generatedExpense);
+            payment.setScheduledBillingDate(scheduledBillingDate);
+            paymentRepository.save(payment);
 
             advanceSubscription(subscription);
 
@@ -76,7 +81,7 @@ public class SubscriptionGenerationService {
             );
             return true;
         } catch (DataIntegrityViolationException duplicate) {
-            log.info("Duplicate subscription occurrence suppressed for subscription {} on {}", subscriptionId, scheduledBillingDate);
+            log.info("Duplicate subscription payment suppressed for subscription {} on {}", subscriptionId, scheduledBillingDate);
             advanceSubscription(subscription);
             return false;
         }

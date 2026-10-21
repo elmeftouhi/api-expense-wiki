@@ -21,7 +21,6 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
 
     Optional<Subscription> findByIdAndTenantId(Long id, Long tenantId);
 
-    Optional<Subscription> findByLegacyTemplateExpenseIdAndTenantId(Long legacyTemplateExpenseId, Long tenantId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM Subscription s WHERE s.id = :id AND s.tenantId = :tenantId")

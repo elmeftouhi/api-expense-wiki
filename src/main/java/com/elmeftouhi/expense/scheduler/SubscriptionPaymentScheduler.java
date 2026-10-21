@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class SubscriptionOccurrenceScheduler {
+public class SubscriptionPaymentScheduler {
 
     private final SubscriptionRepository subscriptionRepository;
     private final SubscriptionGenerationService subscriptionGenerationService;
@@ -29,15 +29,15 @@ public class SubscriptionOccurrenceScheduler {
     private final TenantConfigurationService tenantConfigurationService;
 
     @Scheduled(cron = "0 0 0 * * *") // Daily at 12:00 AM
-    public void generateSubscriptionOccurrences() {
-        log.info("Starting subscription occurrence generation");
+    public void generateSubscriptionPayments() {
+        log.info("Starting subscription payment generation");
 
         List<Tenant> tenants = tenantRepository.findAll();
         for (Tenant tenant : tenants) {
             processTenantSubscriptions(tenant.getId());
         }
 
-        log.info("Subscription occurrence generation completed successfully");
+        log.info("Subscription payment generation completed successfully");
     }
 
     @Transactional
@@ -63,11 +63,12 @@ public class SubscriptionOccurrenceScheduler {
                     generated
             );
         } catch (Exception ex) {
-            log.error("Failed to process subscription occurrences for tenant {}", tenantId, ex);
+            log.error("Failed to process subscription payments for tenant {}", tenantId, ex);
         } finally {
             ConfigurationContext.clear();
             TenantContext.clear();
         }
     }
 }
+
 

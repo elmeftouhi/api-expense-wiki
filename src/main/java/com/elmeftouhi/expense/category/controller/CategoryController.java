@@ -2,6 +2,7 @@ package com.elmeftouhi.expense.category.controller;
 
 import com.elmeftouhi.expense.category.service.CategoryService;
 import com.elmeftouhi.expense.category.dto.CategoryCreateRequest;
+import com.elmeftouhi.expense.category.dto.CategoryLevelUpdateRequest;
 import com.elmeftouhi.expense.category.dto.CategoryResponse;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -56,6 +57,12 @@ public class CategoryController {
     @PatchMapping("/{id}/status")
     public CategoryResponse switchStatus(@PathVariable Long id) {
         return categoryService.switchStatus(id);
+    }
+
+    @PatchMapping("/{id}/level")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void updateLevel(@PathVariable Long id, @Valid @RequestBody CategoryLevelUpdateRequest request) {
+        categoryService.updateLevel(id, request.level());
     }
 }
 

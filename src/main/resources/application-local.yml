@@ -18,7 +18,7 @@ spring:
 app:
   cors:
     allowed-origins:
-      - http://localhost:5173
+      - http://localhost:5174
   jwt:
     secret: replace-with-at-least-32-characters-local-secret-key
     expiration-minutes: 120

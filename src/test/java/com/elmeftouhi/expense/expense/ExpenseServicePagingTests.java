@@ -2,8 +2,6 @@ package com.elmeftouhi.expense.expense;
 
 import com.elmeftouhi.expense.expense.entity.Expense;
 import com.elmeftouhi.expense.expense.repository.ExpenseRepository;
-import com.elmeftouhi.expense.expense.repository.ExpenseSubscriptionRepository;
-import com.elmeftouhi.expense.expense.repository.SubscriptionOccurrenceRepository;
 import com.elmeftouhi.expense.expense.service.ExpenseService;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -45,11 +43,6 @@ class ExpenseServicePagingTests {
     @Mock
     private ExpenseRepository expenseRepository;
 
-    @Mock
-    private ExpenseSubscriptionRepository subscriptionRepository;
-
-    @Mock
-    private SubscriptionOccurrenceRepository occurrenceRepository;
 
     @Mock
     private CategoryRepository categoryRepository;

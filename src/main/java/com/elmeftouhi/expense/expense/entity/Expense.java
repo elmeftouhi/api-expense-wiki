@@ -85,12 +85,6 @@ public class Expense extends BaseTenantAwareEntity {
     @Column(name = "is_deleted", nullable = false)
     private Boolean deleted = false;
 
-    @Column(name = "is_subscription_template", nullable = false)
-    private Boolean subscriptionTemplate = false;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "subscription_id")
-    private Subscription subscription;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();

@@ -48,7 +48,7 @@ public class OverdueExpenseNotificationScheduler {
         try {
             LocalDate today = LocalDate.now(ZoneId.of(configuration.getTimezone()));
             List<Expense> overdueExpenses = expenseRepository
-                    .findByTenantIdAndStatusAndDueDateBeforeAndDeletedFalseAndSubscriptionTemplateFalse(
+                    .findByTenantIdAndStatusAndDueDateBeforeAndDeletedFalse(
                             tenantId,
                             ExpenseStatus.PENDING,
                             today);

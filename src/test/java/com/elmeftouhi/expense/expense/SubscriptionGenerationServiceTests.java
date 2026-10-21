@@ -1,9 +1,9 @@
 package com.elmeftouhi.expense.expense;
 
 import com.elmeftouhi.expense.expense.entity.Expense;
-import com.elmeftouhi.expense.expense.entity.SubscriptionOccurrence;
+import com.elmeftouhi.expense.expense.entity.SubscriptionPayment;
 import com.elmeftouhi.expense.expense.repository.SubscriptionRepository;
-import com.elmeftouhi.expense.expense.repository.SubscriptionOccurrenceRepository;
+import com.elmeftouhi.expense.expense.repository.SubscriptionPaymentRepository;
 import com.elmeftouhi.expense.expense.service.ExpenseService;
 import com.elmeftouhi.expense.expense.service.SubscriptionGenerationService;
 import com.elmeftouhi.expense.expense.entity.Subscription;
@@ -35,7 +35,7 @@ class SubscriptionGenerationServiceTests {
     private SubscriptionRepository subscriptionRepository;
 
     @Mock
-    private SubscriptionOccurrenceRepository occurrenceRepository;
+    private SubscriptionPaymentRepository paymentRepository;
 
     @Mock
     private ExpenseService expenseService;
@@ -60,14 +60,14 @@ class SubscriptionGenerationServiceTests {
         generatedExpense.setCurrency("USD");
 
         when(subscriptionRepository.findForUpdate(subscriptionId, tenantId)).thenReturn(Optional.of(subscription));
-        when(occurrenceRepository.existsByTenantIdAndSubscriptionIdAndScheduledBillingDate(tenantId, subscriptionId, businessDate))
+        when(paymentRepository.existsByTenantIdAndSubscriptionIdAndScheduledBillingDate(tenantId, subscriptionId, businessDate))
                 .thenReturn(false);
         when(expenseService.createGeneratedExpenseFromSubscription(subscription, businessDate)).thenReturn(generatedExpense);
 
         boolean generated = subscriptionGenerationService.generateDueOccurrence(tenantId, subscriptionId, businessDate);
 
         assertTrue(generated);
-        verify(occurrenceRepository).save(any(SubscriptionOccurrence.class));
+        verify(paymentRepository).save(any(SubscriptionPayment.class));
         verify(notificationService).sendExpenseNotification(any(), any(), any());
     }
 
@@ -80,7 +80,7 @@ class SubscriptionGenerationServiceTests {
         Subscription subscription = dueSubscription(tenantId, subscriptionId, businessDate);
 
         when(subscriptionRepository.findForUpdate(subscriptionId, tenantId)).thenReturn(Optional.of(subscription));
-        when(occurrenceRepository.existsByTenantIdAndSubscriptionIdAndScheduledBillingDate(tenantId, subscriptionId, businessDate))
+        when(paymentRepository.existsByTenantIdAndSubscriptionIdAndScheduledBillingDate(tenantId, subscriptionId, businessDate))
                 .thenReturn(true);
 
         boolean generated = subscriptionGenerationService.generateDueOccurrence(tenantId, subscriptionId, businessDate);

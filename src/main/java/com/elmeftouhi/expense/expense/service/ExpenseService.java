@@ -1,19 +1,10 @@
 package com.elmeftouhi.expense.expense.service;
 
 import com.elmeftouhi.expense.expense.entity.Expense;
-import com.elmeftouhi.expense.expense.entity.ExpenseSubscription;
 import com.elmeftouhi.expense.expense.entity.Subscription;
-import com.elmeftouhi.expense.expense.entity.SubscriptionOccurrence;
-import com.elmeftouhi.expense.expense.entity.SubscriptionReminderDelivery;
 import com.elmeftouhi.expense.expense.repository.ExpenseRepository;
-import com.elmeftouhi.expense.expense.repository.ExpenseSubscriptionRepository;
-import com.elmeftouhi.expense.expense.repository.SubscriptionRepository;
-import com.elmeftouhi.expense.expense.repository.SubscriptionOccurrenceRepository;
-import com.elmeftouhi.expense.expense.repository.SubscriptionReminderDeliveryRepository;
 import com.elmeftouhi.expense.expense.ExpenseStatus;
 import com.elmeftouhi.expense.expense.ExpenseType;
-import com.elmeftouhi.expense.expense.SubscriptionFrequency;
-import com.elmeftouhi.expense.expense.SubscriptionLifecycleStatus;
 import com.elmeftouhi.expense.activity.ActivityAction;
 import com.elmeftouhi.expense.activity.service.ActivityLogService;
 import com.elmeftouhi.expense.activity.ActivitySubjectType;
@@ -121,8 +112,6 @@ public class ExpenseService {
         expense.setPaidDate(request.paidDate());
         expense.setPaymentMethod(request.paymentMethod());
         expense.setNotes(request.notes());
-        expense.setSubscriptionTemplate(false);
-
         Expense saved = expenseRepository.save(expense);
         budgetTrackingService.applyExpenseCreated(ExpenseBudgetSnapshot.fromExpense(saved));
 
@@ -146,12 +135,9 @@ public class ExpenseService {
         expense.setDueDate(scheduledBillingDate);
         expense.setPaymentMethod(subscription.getPaymentMethod());
         expense.setNotes(subscription.getNotes());
-        expense.setSubscription(subscription);
-        expense.setSubscriptionTemplate(false);
-
         Expense saved = expenseRepository.save(expense);
         budgetTrackingService.applyExpenseCreated(ExpenseBudgetSnapshot.fromExpense(saved));
-        logActivity(ActivityAction.CREATE, saved, "Subscription occurrence generated");
+        logActivity(ActivityAction.CREATE, saved, "Subscription payment generated");
         return saved;
     }
 
@@ -258,7 +244,7 @@ public class ExpenseService {
     public List<ExpenseResponse> findOverdue() {
         Long tenantId = TenantContext.getRequiredTenantId();
         LocalDate today = LocalDate.now();
-        List<Expense> overdue = expenseRepository.findByTenantIdAndStatusAndDueDateBeforeAndDeletedFalseAndSubscriptionTemplateFalse(
+        List<Expense> overdue = expenseRepository.findByTenantIdAndStatusAndDueDateBeforeAndDeletedFalse(
                 tenantId, ExpenseStatus.PENDING, today);
         return overdue.stream().map(this::toResponse).toList();
     }
@@ -276,9 +262,9 @@ public class ExpenseService {
         BigDecimal totalExpenses = totalPending.add(totalPaid).add(totalOverdue);
 
         List<Expense> pendingExpenses = expenseRepository
-                .findByTenantIdAndStatusAndDeletedFalseAndSubscriptionTemplateFalse(tenantId, ExpenseStatus.PENDING);
+                .findByTenantIdAndStatusAndDeletedFalse(tenantId, ExpenseStatus.PENDING);
         List<Expense> overdueExpenses = expenseRepository
-                .findByTenantIdAndStatusAndDeletedFalseAndSubscriptionTemplateFalse(tenantId, ExpenseStatus.OVERDUE);
+                .findByTenantIdAndStatusAndDeletedFalse(tenantId, ExpenseStatus.OVERDUE);
 
         List<ExpenseStatisticsResponse.CategorySummary> byCategory = buildCategorySummary(tenantId, startDate, endDate);
 
@@ -318,7 +304,7 @@ public class ExpenseService {
 
     private Expense loadExpense(Long id, Long tenantId) {
         return expenseRepository.findByIdAndTenantId(id, tenantId)
-                .filter(e -> !e.getDeleted() && !e.getSubscriptionTemplate())
+                .filter(e -> !e.getDeleted())
                 .orElseThrow(() -> new ResourceNotFoundException("Expense not found"));
     }
 
@@ -355,7 +341,7 @@ public class ExpenseService {
                 expense.getPaidDate(),
                 expense.getPaymentMethod(),
                 expense.getNotes(),
-                expense.getSubscription() != null,
+                expense.getType() == ExpenseType.SUBSCRIPTION,
                 expense.getTenantId(),
                 expense.getCreatedAt(),
                 expense.getUpdatedAt()

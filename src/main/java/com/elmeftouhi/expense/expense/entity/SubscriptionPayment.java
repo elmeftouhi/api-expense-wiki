@@ -21,25 +21,25 @@ import lombok.Setter;
 
 @Entity
 @Table(
-        name = "subscription_billing_occurrences",
+        name = "subscription_payments",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_subscription_billing_occurrence_tenant_subscription_date",
+                        name = "uk_subscription_payment_tenant_subscription_date",
                         columnNames = {"tenant_id", "subscription_id", "scheduled_billing_date"}
                 )
         },
         indexes = {
-                @Index(name = "idx_subs_billing_occ_tenant_id", columnList = "tenant_id"),
-                @Index(name = "idx_subs_billing_occ_subscription_id", columnList = "subscription_id"),
-                @Index(name = "idx_subs_billing_occ_generated_expense", columnList = "generated_expense_id"),
-                @Index(name = "idx_subs_billing_occ_scheduled_date", columnList = "scheduled_billing_date")
+                @Index(name = "idx_subs_payment_tenant_id", columnList = "tenant_id"),
+                @Index(name = "idx_subs_payment_subscription_id", columnList = "subscription_id"),
+                @Index(name = "idx_subs_payment_expense", columnList = "expense_id"),
+                @Index(name = "idx_subs_payment_scheduled_date", columnList = "scheduled_billing_date")
         }
 )
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class SubscriptionOccurrence extends BaseTenantAwareEntity {
+public class SubscriptionPayment extends BaseTenantAwareEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -50,8 +50,8 @@ public class SubscriptionOccurrence extends BaseTenantAwareEntity {
     private Subscription subscription;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "generated_expense_id", nullable = false)
-    private Expense generatedExpense;
+    @JoinColumn(name = "expense_id", nullable = false)
+    private Expense expense;
 
     @Column(name = "scheduled_billing_date", nullable = false)
     private LocalDate scheduledBillingDate;
@@ -59,4 +59,5 @@ public class SubscriptionOccurrence extends BaseTenantAwareEntity {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 }
+
 

@@ -33,9 +33,7 @@ import lombok.Setter;
                 @Index(name = "idx_subscriptions_v2_category_id", columnList = "category_id"),
                 @Index(name = "idx_subscriptions_v2_status", columnList = "status"),
                 @Index(name = "idx_subscriptions_v2_next_billing_date", columnList = "next_billing_date"),
-                @Index(name = "idx_subscriptions_v2_tenant_status_next_date", columnList = "tenant_id, status, next_billing_date"),
-                @Index(name = "idx_subscriptions_v2_legacy_expense_id", columnList = "legacy_template_expense_id"),
-                @Index(name = "idx_subscriptions_v2_legacy_subscription_id", columnList = "legacy_subscription_id")
+                @Index(name = "idx_subscriptions_v2_tenant_status_next_date", columnList = "tenant_id, status, next_billing_date")
         }
 )
 @Getter
@@ -101,11 +99,6 @@ public class Subscription extends BaseTenantAwareEntity {
     @Column(name = "anchor_month_of_year", nullable = false)
     private Integer anchorMonthOfYear;
 
-    @Column(name = "legacy_template_expense_id")
-    private Long legacyTemplateExpenseId;
-
-    @Column(name = "legacy_subscription_id")
-    private Long legacySubscriptionId;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();

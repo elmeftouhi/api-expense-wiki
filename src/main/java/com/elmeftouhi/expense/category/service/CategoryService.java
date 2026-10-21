@@ -132,6 +132,27 @@ public class CategoryService {
         return response;
     }
 
+    @Transactional
+    public void updateLevel(Long id, Integer requestedLevel) {
+        Long tenantId = TenantContext.getRequiredTenantId();
+        Category category = loadCategory(id, tenantId);
+        Long parentCategoryId = getParentCategoryId(category);
+
+        if (requestedLevel == null || requestedLevel < 1) {
+            throw new BadRequestException("Category level must be greater than 0");
+        }
+
+        int siblingCount = loadSiblingGroup(tenantId, parentCategoryId).size();
+        if (requestedLevel > siblingCount) {
+            throw new BadRequestException("Category level must be between 1 and " + siblingCount);
+        }
+
+        reorderSiblingGroup(tenantId, parentCategoryId, id, requestedLevel);
+
+        CategoryResponse response = toResponse(loadCategory(id, tenantId), true);
+        logActivity(ActivityAction.UPDATE, response, buildActivityMessage("reordered"), buildActivityMetadata(response));
+    }
+
     private Category loadCategory(Long id, Long tenantId) {
         return categoryRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));

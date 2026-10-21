@@ -141,13 +141,19 @@ Use `PUT /v1/customer-categories/{id}/default` to mark a category as default, an
 - `POST /v1/subscriptions/{id}/pause`
 - `POST /v1/subscriptions/{id}/resume`
 - `POST /v1/subscriptions/{id}/stop`
-- `GET /v1/subscriptions/{id}/occurrences`
+
+### Subscription payments
+
+- `GET /v1/subscriptions/{id}/payments`
+- `GET /v1/subscription-payments/{paymentId}`
+- `GET /v1/subscriptions/{id}/occurrences` (compatibility alias)
 
 Key behavior:
 - Creating a subscription does not create an expense immediately unless it is already due and picked by scheduler policy.
 - Only expense rows are counted in expense totals and budget tracking.
 - Subscription definitions are not part of the financial ledger.
 - Generated subscription expenses are created as `PENDING` with `dueDate = scheduled billing date`.
+- Each generated expense is linked through `subscription_payments`.
 - Scheduling uses tenant timezone and anchored calendar rules (no permanent drift for month-end anchors).
 - Resume requires explicit `nextBillingDate` to avoid implicit paused-period backfill.
 

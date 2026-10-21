@@ -18,19 +18,19 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
 
     Optional<Expense> findByIdAndTenantId(Long id, Long tenantId);
 
-    List<Expense> findByTenantIdAndDeletedFalseAndSubscriptionTemplateFalseOrderByDueDateDesc(Long tenantId);
+    List<Expense> findByTenantIdAndDeletedFalseOrderByDueDateDesc(Long tenantId);
 
-    List<Expense> findByTenantIdAndCategoryIdAndDeletedFalseAndSubscriptionTemplateFalse(Long tenantId, Long categoryId);
+    List<Expense> findByTenantIdAndCategoryIdAndDeletedFalse(Long tenantId, Long categoryId);
 
-    List<Expense> findByTenantIdAndStatusAndDeletedFalseAndSubscriptionTemplateFalse(Long tenantId, ExpenseStatus status);
+    List<Expense> findByTenantIdAndStatusAndDeletedFalse(Long tenantId, ExpenseStatus status);
 
-    List<Expense> findByTenantIdAndStatusAndDueDateBeforeAndDeletedFalseAndSubscriptionTemplateFalse(
+    List<Expense> findByTenantIdAndStatusAndDueDateBeforeAndDeletedFalse(
             Long tenantId, ExpenseStatus status, LocalDate date);
 
-    List<Expense> findByTenantIdAndDueDateBetweenAndDeletedFalseAndSubscriptionTemplateFalse(
+    List<Expense> findByTenantIdAndDueDateBetweenAndDeletedFalse(
             Long tenantId, LocalDate start, LocalDate end);
 
-    List<Expense> findByTenantIdAndStatusAndDueDateBetweenAndDeletedFalseAndSubscriptionTemplateFalse(
+    List<Expense> findByTenantIdAndStatusAndDueDateBetweenAndDeletedFalse(
             Long tenantId,
             ExpenseStatus status,
             LocalDate start,
@@ -40,7 +40,6 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             SELECT e FROM Expense e
             WHERE e.tenantId = :tenantId
                 AND e.deleted = false
-                AND e.subscriptionTemplate = false
                 AND e.dueDate BETWEEN :startDate AND :endDate
                 AND (:categoryId IS NULL OR e.category.id = :categoryId)
                 AND (:type IS NULL OR e.type = :type)
@@ -57,7 +56,6 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             SELECT e FROM Expense e
             WHERE e.tenantId = :tenantId
                 AND e.deleted = false
-                AND e.subscriptionTemplate = false
                 AND e.status = :status
                 AND e.dueDate >= :startDate
                 AND e.dueDate <= :endDate
@@ -76,7 +74,6 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             FROM Expense e
             WHERE e.tenantId = :tenantId
                 AND e.deleted = false
-                AND e.subscriptionTemplate = false
                 AND e.status = :status
                 AND e.dueDate BETWEEN :startDate AND :endDate
             """)
@@ -92,7 +89,6 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             WHERE e.tenantId = :tenantId
                 AND e.category.id = :categoryId
                 AND e.deleted = false
-                AND e.subscriptionTemplate = false
                 AND e.dueDate BETWEEN :startDate AND :endDate
             """)
     java.math.BigDecimal sumByCategoryAndDateRange(
@@ -101,6 +97,6 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
 
-    boolean existsByIdAndTenantIdAndDeletedFalseAndSubscriptionTemplateFalse(Long id, Long tenantId);
+    boolean existsByIdAndTenantIdAndDeletedFalse(Long id, Long tenantId);
 }
 

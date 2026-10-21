@@ -2,7 +2,6 @@ package com.elmeftouhi.expense.expense;
 
 import com.elmeftouhi.expense.expense.entity.Subscription;
 import com.elmeftouhi.expense.expense.repository.SubscriptionRepository;
-import com.elmeftouhi.expense.expense.repository.SubscriptionOccurrenceRepository;
 import com.elmeftouhi.expense.expense.service.SubscriptionService;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -43,8 +42,6 @@ class SubscriptionServiceTests {
     @Mock
     private SubscriptionRepository subscriptionRepository;
 
-    @Mock
-    private SubscriptionOccurrenceRepository occurrenceRepository;
 
     @Mock
     private CategoryRepository categoryRepository;

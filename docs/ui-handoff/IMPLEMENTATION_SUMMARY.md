@@ -47,8 +47,8 @@ Full-featured expense tracking system with support for one-time and recurring ex
 
 **Entities:**
 - `Expense` - Core expense entity with soft delete support
-- `ExpenseSubscription` - Recurring payment configuration
-- `SubscriptionOccurrence` - Auto-generated expense instances from subscriptions
+- `Subscription` - Recurring billing definition (independent resource)
+- `SubscriptionPayment` - Generated billing/payment instance linked to `Expense`
 
 **Types:**
 - `ExpenseType` - NORMAL or SUBSCRIPTION
@@ -62,7 +62,7 @@ Full-featured expense tracking system with support for one-time and recurring ex
 - ✅ Multi-currency support
 - ✅ Payment method tracking
 - ✅ Flexible notes field
-- ✅ Subscription with automatic occurrence generation
+- ✅ Subscription with automatic payment generation
 - ✅ Custom interval support for subscriptions
 - ✅ Budget tracking and statistics
 - ✅ Overdue expense detection

@@ -684,6 +684,169 @@ class CategoryServiceTests {
     }
 
     @Test
+    void updatingCategoryLevelReordersRootSiblingGroup() {
+        TenantContext.setTenantId(1L);
+        categoryService.create(new CategoryCreateRequest(
+                null,
+                "Food",
+                null,
+                null,
+                null,
+                null,
+                null,
+                1,
+                true,
+                false
+        ));
+        CategoryResponse travel = categoryService.create(new CategoryCreateRequest(
+                null,
+                "Travel",
+                null,
+                null,
+                null,
+                null,
+                null,
+                2,
+                true,
+                false
+        ));
+        categoryService.create(new CategoryCreateRequest(
+                null,
+                "Health",
+                null,
+                null,
+                null,
+                null,
+                null,
+                3,
+                true,
+                false
+        ));
+
+        categoryService.updateLevel(travel.id(), 1);
+
+        assertThat(categoryService.findAll(true))
+                .extracting(CategoryResponse::name, CategoryResponse::level)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("Travel", 1),
+                        org.assertj.core.groups.Tuple.tuple("Food", 2),
+                        org.assertj.core.groups.Tuple.tuple("Health", 3)
+                );
+    }
+
+    @Test
+    void updatingCategoryLevelReordersOnlyWithinCurrentSiblingGroup() {
+        TenantContext.setTenantId(1L);
+        CategoryResponse food = categoryService.create(new CategoryCreateRequest(
+                null,
+                "Food",
+                null,
+                null,
+                null,
+                null,
+                null,
+                1,
+                true,
+                false
+        ));
+        CategoryResponse travel = categoryService.create(new CategoryCreateRequest(
+                null,
+                "Travel",
+                null,
+                null,
+                null,
+                null,
+                null,
+                2,
+                true,
+                false
+        ));
+
+        CategoryResponse groceries = categoryService.create(new CategoryCreateRequest(
+                food.id(),
+                "Groceries",
+                null,
+                null,
+                null,
+                null,
+                null,
+                1,
+                true,
+                false
+        ));
+        categoryService.create(new CategoryCreateRequest(
+                food.id(),
+                "Dining",
+                null,
+                null,
+                null,
+                null,
+                null,
+                2,
+                true,
+                false
+        ));
+        categoryService.create(new CategoryCreateRequest(
+                travel.id(),
+                "Taxi",
+                null,
+                null,
+                null,
+                null,
+                null,
+                1,
+                true,
+                false
+        ));
+
+        categoryService.updateLevel(groceries.id(), 2);
+
+        CategoryResponse loadedFood = categoryService.getById(food.id());
+        assertThat(loadedFood.subCategories())
+                .extracting(CategoryResponse::name, CategoryResponse::level)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("Dining", 1),
+                        org.assertj.core.groups.Tuple.tuple("Groceries", 2)
+                );
+
+        CategoryResponse loadedTravel = categoryService.getById(travel.id());
+        assertThat(loadedTravel.subCategories())
+                .extracting(CategoryResponse::name, CategoryResponse::level)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("Taxi", 1));
+    }
+
+    @Test
+    void updatingCategoryLevelOutsideSiblingBoundsThrowsBadRequest() {
+        TenantContext.setTenantId(1L);
+        categoryService.create(new CategoryCreateRequest(
+                null,
+                "Food",
+                null,
+                null,
+                null,
+                null,
+                null,
+                1,
+                true,
+                false
+        ));
+        CategoryResponse travel = categoryService.create(new CategoryCreateRequest(
+                null,
+                "Travel",
+                null,
+                null,
+                null,
+                null,
+                null,
+                2,
+                true,
+                false
+        ));
+
+        assertThrows(BadRequestException.class, () -> categoryService.updateLevel(travel.id(), 3));
+    }
+
+    @Test
     void cannotDeleteCategoryThatHasSubcategories() {
         TenantContext.setTenantId(1L);
         CategoryResponse parent = categoryService.create(new CategoryCreateRequest(

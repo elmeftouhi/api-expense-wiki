@@ -5,11 +5,11 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 
-public record SubscriptionOccurrenceResponse(
+public record SubscriptionPaymentResponse(
         Long id,
         Long subscriptionId,
         LocalDate scheduledBillingDate,
-        Long generatedExpenseId,
+        Long expenseId,
         BigDecimal expenseAmount,
         String expenseCurrency,
         ExpenseStatus expenseStatus,
@@ -18,4 +18,5 @@ public record SubscriptionOccurrenceResponse(
         Instant createdAt
 ) {
 }
+
 

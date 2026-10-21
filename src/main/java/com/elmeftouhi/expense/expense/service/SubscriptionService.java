@@ -1,26 +1,15 @@
 package com.elmeftouhi.expense.expense.service;
 
-import com.elmeftouhi.expense.expense.entity.Expense;
-import com.elmeftouhi.expense.expense.entity.ExpenseSubscription;
 import com.elmeftouhi.expense.expense.entity.Subscription;
-import com.elmeftouhi.expense.expense.entity.SubscriptionOccurrence;
-import com.elmeftouhi.expense.expense.entity.SubscriptionReminderDelivery;
-import com.elmeftouhi.expense.expense.repository.ExpenseRepository;
-import com.elmeftouhi.expense.expense.repository.ExpenseSubscriptionRepository;
 import com.elmeftouhi.expense.expense.repository.SubscriptionRepository;
-import com.elmeftouhi.expense.expense.repository.SubscriptionOccurrenceRepository;
-import com.elmeftouhi.expense.expense.repository.SubscriptionReminderDeliveryRepository;
 import com.elmeftouhi.expense.expense.SubscriptionFrequency;
 import com.elmeftouhi.expense.expense.SubscriptionLifecycleStatus;
-import com.elmeftouhi.expense.expense.ExpenseStatus;
-import com.elmeftouhi.expense.expense.ExpenseType;
 import com.elmeftouhi.expense.activity.ActivityAction;
 import com.elmeftouhi.expense.activity.service.ActivityLogService;
 import com.elmeftouhi.expense.activity.ActivitySubjectType;
 import com.elmeftouhi.expense.category.entity.Category;
 import com.elmeftouhi.expense.category.repository.CategoryRepository;
 import com.elmeftouhi.expense.expense.dto.SubscriptionCreateRequest;
-import com.elmeftouhi.expense.expense.dto.SubscriptionOccurrenceResponse;
 import com.elmeftouhi.expense.expense.dto.SubscriptionResponse;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
 import com.elmeftouhi.expense.security.JwtPrincipal;
@@ -42,7 +31,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class SubscriptionService {
 
     private final SubscriptionRepository subscriptionRepository;
-    private final SubscriptionOccurrenceRepository occurrenceRepository;
     private final CategoryRepository categoryRepository;
     private final ActivityLogService activityLogService;
 
@@ -229,26 +217,6 @@ public class SubscriptionService {
         return toResponse(saved);
     }
 
-    @Transactional(readOnly = true)
-    public Page<SubscriptionOccurrenceResponse> getOccurrenceHistory(Long subscriptionId, Pageable pageable) {
-        Long tenantId = TenantContext.getRequiredTenantId();
-        loadSubscription(subscriptionId, tenantId);
-
-        return occurrenceRepository
-                .findBySubscriptionIdAndTenantIdOrderByScheduledBillingDateDesc(subscriptionId, tenantId, pageable)
-                .map(occurrence -> new SubscriptionOccurrenceResponse(
-                        occurrence.getId(),
-                        occurrence.getSubscription().getId(),
-                        occurrence.getScheduledBillingDate(),
-                        occurrence.getGeneratedExpense().getId(),
-                        occurrence.getGeneratedExpense().getAmount(),
-                        occurrence.getGeneratedExpense().getCurrency(),
-                        occurrence.getGeneratedExpense().getStatus(),
-                        occurrence.getGeneratedExpense().getDueDate(),
-                        occurrence.getGeneratedExpense().getPaidDate(),
-                        occurrence.getCreatedAt()
-                ));
-    }
 
     private Integer resolveReminderLeadDays(Integer requestedLeadDays) {
         int leadDays = requestedLeadDays != null ? requestedLeadDays : Subscription.DEFAULT_REMINDER_LEAD_DAYS;

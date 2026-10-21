@@ -2,8 +2,6 @@ package com.elmeftouhi.expense.expense;
 
 import com.elmeftouhi.expense.expense.entity.Expense;
 import com.elmeftouhi.expense.expense.repository.ExpenseRepository;
-import com.elmeftouhi.expense.expense.repository.ExpenseSubscriptionRepository;
-import com.elmeftouhi.expense.expense.repository.SubscriptionOccurrenceRepository;
 import com.elmeftouhi.expense.expense.service.ExpenseService;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -43,12 +41,6 @@ class ExpenseServiceTests {
 
     @Mock
     private ExpenseRepository expenseRepository;
-
-    @Mock
-    private ExpenseSubscriptionRepository subscriptionRepository;
-
-    @Mock
-    private SubscriptionOccurrenceRepository occurrenceRepository;
 
     @Mock
     private CategoryRepository categoryRepository;
@@ -356,7 +348,7 @@ class ExpenseServiceTests {
         overdueExpense.setDueDate(LocalDate.of(2026, 8, 15));
         overdueExpense.assignTenantId(tenantId);
 
-        when(expenseRepository.findByTenantIdAndStatusAndDueDateBeforeAndDeletedFalseAndSubscriptionTemplateFalse(
+        when(expenseRepository.findByTenantIdAndStatusAndDueDateBeforeAndDeletedFalse(
                 tenantId, ExpenseStatus.PENDING, LocalDate.now()))
                 .thenReturn(java.util.List.of(overdueExpense));
 

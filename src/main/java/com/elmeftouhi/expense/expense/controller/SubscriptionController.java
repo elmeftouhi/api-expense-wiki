@@ -4,8 +4,6 @@ import com.elmeftouhi.expense.expense.service.SubscriptionService;
 import com.elmeftouhi.expense.expense.SubscriptionLifecycleStatus;
 import com.elmeftouhi.expense.expense.SubscriptionFrequency;
 import com.elmeftouhi.expense.expense.dto.SubscriptionCreateRequest;
-import com.elmeftouhi.expense.expense.dto.SubscriptionOccurrencePageResponse;
-import com.elmeftouhi.expense.expense.dto.SubscriptionOccurrenceResponse;
 import com.elmeftouhi.expense.expense.dto.SubscriptionPageResponse;
 import com.elmeftouhi.expense.expense.dto.SubscriptionResponse;
 import com.elmeftouhi.expense.expense.dto.SubscriptionResumeRequest;
@@ -34,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/v1/subscriptions")
-@Tag(name = "Subscriptions", description = "Manage independent recurring subscriptions and generated occurrences")
+@Tag(name = "Subscriptions", description = "Manage independent recurring subscription definitions and lifecycle")
 public class SubscriptionController {
 
     private final SubscriptionService subscriptionService;
@@ -131,20 +129,5 @@ public class SubscriptionController {
         return subscriptionService.stop(id);
     }
 
-    @GetMapping("/{id}/occurrences")
-    @Operation(summary = "List generated occurrences", description = "Returns paginated generated expense history for a subscription")
-    @ApiResponse(responseCode = "200", description = "Occurrence history returned successfully")
-    public SubscriptionOccurrencePageResponse getOccurrences(
-            @PathVariable Long id,
-            @PageableDefault(size = 20, sort = "scheduledBillingDate", direction = Sort.Direction.DESC) Pageable pageable) {
-        Page<SubscriptionOccurrenceResponse> pageResult = subscriptionService.getOccurrenceHistory(id, pageable);
-        return new SubscriptionOccurrencePageResponse(
-                pageResult.getContent(),
-                pageResult.getNumber(),
-                pageResult.getSize(),
-                pageResult.getTotalElements(),
-                pageResult.getTotalPages()
-        );
-    }
 }
 
