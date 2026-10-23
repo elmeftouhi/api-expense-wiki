@@ -18,6 +18,8 @@ public record SubscriptionResponse(
         SubscriptionFrequency frequency,
         Integer customIntervalDays,
         LocalDate nextBillingDate,
+        Boolean overdue,
+        Long daysLeftBeforeDueDate,
         LocalDate endDate,
         SubscriptionLifecycleStatus status,
         Integer reminderLeadDays,

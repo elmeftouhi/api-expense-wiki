@@ -18,6 +18,7 @@ import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
 import com.elmeftouhi.expense.tenantconfig.ConfigurationContext;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -275,6 +276,13 @@ public class SubscriptionService {
     }
 
     private SubscriptionResponse toResponse(Subscription subscription) {
+        LocalDate nextBillingDate = subscription.getNextBillingDate();
+        LocalDate today = LocalDate.now();
+        boolean overdue = nextBillingDate != null && nextBillingDate.isBefore(today);
+        Long daysLeftBeforeDueDate = nextBillingDate == null
+                ? null
+                : Math.max(0L, ChronoUnit.DAYS.between(today, nextBillingDate));
+
         return new SubscriptionResponse(
                 subscription.getId(),
                 subscription.getName(),
@@ -286,7 +294,9 @@ public class SubscriptionService {
                 subscription.getCurrency(),
                 subscription.getFrequency(),
                 subscription.getCustomIntervalDays(),
-                subscription.getNextBillingDate(),
+                nextBillingDate,
+                overdue,
+                daysLeftBeforeDueDate,
                 subscription.getEndDate(),
                 subscription.getStatus(),
                 subscription.getReminderLeadDays(),

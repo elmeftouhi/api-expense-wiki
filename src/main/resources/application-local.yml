@@ -26,6 +26,6 @@ app:
 logging:
   level:
     com.elmeftouhi.expense: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.orm.jdbc.bind: DEBUG
+#    org.hibernate.SQL: DEBUG
+#    org.hibernate.orm.jdbc.bind: DEBUG
 
