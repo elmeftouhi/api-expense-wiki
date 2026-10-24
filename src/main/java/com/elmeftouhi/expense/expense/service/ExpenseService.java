@@ -16,6 +16,8 @@ import com.elmeftouhi.expense.expense.dto.ExpenseCreateRequest;
 import com.elmeftouhi.expense.expense.dto.ExpenseResponse;
 import com.elmeftouhi.expense.expense.dto.ExpenseStatisticsResponse;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
+import com.elmeftouhi.expense.paymentmethod.entity.PaymentMethod;
+import com.elmeftouhi.expense.paymentmethod.service.PaymentMethodService;
 import com.elmeftouhi.expense.security.JwtPrincipal;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
@@ -43,6 +45,7 @@ public class ExpenseService {
     private final CategoryRepository categoryRepository;
     private final ActivityLogService activityLogService;
     private final BudgetTrackingService budgetTrackingService;
+    private final PaymentMethodService paymentMethodService;
 
     @Transactional(readOnly = true)
     public Page<ExpenseResponse> findAll(Integer year, Integer month, Long categoryId, ExpenseType type, Pageable pageable) {
@@ -94,6 +97,7 @@ public class ExpenseService {
 
         Category category = categoryRepository.findByIdAndTenantId(request.categoryId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+        PaymentMethod paymentMethod = paymentMethodService.resolveForUsage(tenantId, request.paymentMethodId());
 
         Expense expense = new Expense();
         expense.assignTenantId(tenantId);
@@ -110,7 +114,7 @@ public class ExpenseService {
         expense.setStatus(request.paidDate() != null ? ExpenseStatus.PAID : ExpenseStatus.PENDING);
         expense.setDueDate(request.dueDate());
         expense.setPaidDate(request.paidDate());
-        expense.setPaymentMethod(request.paymentMethod());
+        expense.setPaymentMethod(paymentMethod);
         expense.setNotes(request.notes());
         Expense saved = expenseRepository.save(expense);
         budgetTrackingService.applyExpenseCreated(ExpenseBudgetSnapshot.fromExpense(saved));
@@ -149,6 +153,7 @@ public class ExpenseService {
 
         Category category = categoryRepository.findByIdAndTenantId(request.categoryId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+        PaymentMethod paymentMethod = paymentMethodService.resolveForUsage(tenantId, request.paymentMethodId());
 
         expense.setCategory(category);
         expense.setDescription(request.description());
@@ -156,7 +161,7 @@ public class ExpenseService {
         expense.setDueDate(request.dueDate());
         expense.setPaidDate(request.paidDate());
         expense.setStatus(request.paidDate() != null ? ExpenseStatus.PAID : ExpenseStatus.PENDING);
-        expense.setPaymentMethod(request.paymentMethod());
+        expense.setPaymentMethod(paymentMethod);
         expense.setNotes(request.notes());
         expense.setUpdatedAt(Instant.now());
         ExpenseType type = request.type() != null ? request.type() : ExpenseType.NORMAL;
@@ -339,7 +344,8 @@ public class ExpenseService {
                 expense.getStatus(),
                 expense.getDueDate(),
                 expense.getPaidDate(),
-                expense.getPaymentMethod(),
+                expense.getPaymentMethod() != null ? expense.getPaymentMethod().getId() : null,
+                expense.getPaymentMethod() != null ? expense.getPaymentMethod().getName() : null,
                 expense.getNotes(),
                 expense.getType() == ExpenseType.SUBSCRIPTION,
                 expense.getTenantId(),

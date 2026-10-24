@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -60,8 +61,8 @@ public class SubscriptionController {
             @RequestParam(required = false) String search,
             @Parameter(description = "Filter by lifecycle status")
             @RequestParam(required = false) SubscriptionLifecycleStatus status,
-            @Parameter(description = "Filter by category ID")
-            @RequestParam(required = false) Long categoryId,
+            @Parameter(description = "Filter by category IDs")
+            @RequestParam(required = false) List<Long> categoryIds,
             @Parameter(description = "Filter by recurrence frequency")
             @RequestParam(required = false) SubscriptionFrequency frequency,
             @Parameter(description = "Filter by next billing date from")
@@ -72,7 +73,7 @@ public class SubscriptionController {
         Page<SubscriptionResponse> pageResult = subscriptionService.search(
                 search,
                 status,
-                categoryId,
+                categoryIds,
                 frequency,
                 nextBillingFrom,
                 nextBillingTo,

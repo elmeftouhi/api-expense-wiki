@@ -4,6 +4,7 @@ import com.elmeftouhi.expense.expense.SubscriptionFrequency;
 import com.elmeftouhi.expense.expense.SubscriptionLifecycleStatus;
 import com.elmeftouhi.expense.category.entity.Category;
 import com.elmeftouhi.expense.multitenancy.BaseTenantAwareEntity;
+import com.elmeftouhi.expense.paymentmethod.entity.PaymentMethod;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -87,8 +88,9 @@ public class Subscription extends BaseTenantAwareEntity {
     @Column(name = "reminder_lead_days", nullable = false)
     private Integer reminderLeadDays = DEFAULT_REMINDER_LEAD_DAYS;
 
-    @Column(name = "payment_method", length = 100)
-    private String paymentMethod;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "payment_method_id")
+    private PaymentMethod paymentMethod;
 
     @Column(name = "notes", length = 1000)
     private String notes;

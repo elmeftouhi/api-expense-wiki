@@ -14,6 +14,8 @@ import com.elmeftouhi.expense.category.repository.CategoryRepository;
 import com.elmeftouhi.expense.expense.dto.ExpenseCreateRequest;
 import com.elmeftouhi.expense.expense.dto.ExpenseResponse;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
+import com.elmeftouhi.expense.paymentmethod.entity.PaymentMethod;
+import com.elmeftouhi.expense.paymentmethod.service.PaymentMethodService;
 import com.elmeftouhi.expense.security.JwtPrincipal;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
@@ -51,6 +53,9 @@ class ExpenseServiceTests {
     @Mock
     private BudgetTrackingService budgetTrackingService;
 
+    @Mock
+    private PaymentMethodService paymentMethodService;
+
     @InjectMocks
     private ExpenseService expenseService;
 
@@ -84,13 +89,18 @@ class ExpenseServiceTests {
                 LocalDate.of(2026, 9, 30),
                 null,
                 ExpenseType.NORMAL,
-                "CARD",
+                3L,
                 "Test notes"
         );
 
         Category category = new Category();
         category.setId(categoryId);
         category.setName("Food");
+
+        PaymentMethod paymentMethod = new PaymentMethod();
+        paymentMethod.setId(3L);
+        paymentMethod.setName("Cash");
+        paymentMethod.setActive(true);
 
         Expense savedExpense = new Expense();
         savedExpense.setId(1L);
@@ -104,6 +114,7 @@ class ExpenseServiceTests {
         savedExpense.setPaidDate(request.paidDate());
 
         when(categoryRepository.findByIdAndTenantId(categoryId, tenantId)).thenReturn(java.util.Optional.of(category));
+        when(paymentMethodService.resolveForUsage(tenantId, 3L)).thenReturn(paymentMethod);
         when(expenseRepository.save(any(Expense.class))).thenReturn(savedExpense);
 
         // When
@@ -132,7 +143,7 @@ class ExpenseServiceTests {
                 LocalDate.of(2026, 9, 30),
                 null,
                 ExpenseType.NORMAL,
-                "CARD",
+                3L,
                 "Test notes"
         );
 
@@ -153,13 +164,18 @@ class ExpenseServiceTests {
                 LocalDate.of(2026, 9, 30),
                 null,
                 ExpenseType.NORMAL,
-                "CARD",
+                3L,
                 "Test notes"
         );
 
         Category category = new Category();
         category.setId(categoryId);
         category.setName("Food");
+
+        PaymentMethod paymentMethod = new PaymentMethod();
+        paymentMethod.setId(3L);
+        paymentMethod.setName("Cash");
+        paymentMethod.setActive(true);
 
         Expense savedExpense = new Expense();
         savedExpense.setId(2L);
@@ -173,6 +189,7 @@ class ExpenseServiceTests {
         savedExpense.setPaidDate(null);
 
         when(categoryRepository.findByIdAndTenantId(categoryId, tenantId)).thenReturn(java.util.Optional.of(category));
+        when(paymentMethodService.resolveForUsage(tenantId, 3L)).thenReturn(paymentMethod);
         when(expenseRepository.save(any(Expense.class))).thenReturn(savedExpense);
 
         // When
@@ -194,13 +211,18 @@ class ExpenseServiceTests {
                 LocalDate.of(2026, 10, 31),
                 null,
                 ExpenseType.SUBSCRIPTION,
-                "CARD",
+                3L,
                 null
         );
 
         Category category = new Category();
         category.setId(categoryId);
         when(categoryRepository.findByIdAndTenantId(categoryId, tenantId)).thenReturn(java.util.Optional.of(category));
+        PaymentMethod paymentMethod = new PaymentMethod();
+        paymentMethod.setId(3L);
+        paymentMethod.setName("Cash");
+        paymentMethod.setActive(true);
+        when(paymentMethodService.resolveForUsage(tenantId, 3L)).thenReturn(paymentMethod);
 
         assertThrows(BadRequestException.class, () -> expenseService.create(request));
         verify(expenseRepository, never()).save(any(Expense.class));

@@ -3,6 +3,7 @@ package com.elmeftouhi.expense.expense.entity;
 import com.elmeftouhi.expense.expense.ExpenseType;
 import com.elmeftouhi.expense.expense.ExpenseStatus;
 import com.elmeftouhi.expense.multitenancy.BaseTenantAwareEntity;
+import com.elmeftouhi.expense.paymentmethod.entity.PaymentMethod;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -76,8 +77,9 @@ public class Expense extends BaseTenantAwareEntity {
     @Column(name = "paid_date")
     private LocalDate paidDate;
 
-    @Column(name = "payment_method", length = 100)
-    private String paymentMethod;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "payment_method_id")
+    private PaymentMethod paymentMethod;
 
     @Column(name = "notes", length = 1000)
     private String notes;

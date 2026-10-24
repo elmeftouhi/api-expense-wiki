@@ -24,7 +24,7 @@ public record ExpenseCreateRequest(
 
         ExpenseType type,
 
-        String paymentMethod,
+        Long paymentMethodId,
 
         String notes
 ) {

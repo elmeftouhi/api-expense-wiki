@@ -12,6 +12,8 @@ import com.elmeftouhi.expense.category.repository.CategoryRepository;
 import com.elmeftouhi.expense.expense.dto.SubscriptionCreateRequest;
 import com.elmeftouhi.expense.expense.dto.SubscriptionResponse;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
+import com.elmeftouhi.expense.paymentmethod.entity.PaymentMethod;
+import com.elmeftouhi.expense.paymentmethod.service.PaymentMethodService;
 import com.elmeftouhi.expense.security.JwtPrincipal;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
@@ -19,6 +21,7 @@ import com.elmeftouhi.expense.tenantconfig.ConfigurationContext;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -34,6 +37,7 @@ public class SubscriptionService {
     private final SubscriptionRepository subscriptionRepository;
     private final CategoryRepository categoryRepository;
     private final ActivityLogService activityLogService;
+    private final PaymentMethodService paymentMethodService;
 
     @Transactional
     public SubscriptionResponse create(SubscriptionCreateRequest request) {
@@ -41,6 +45,7 @@ public class SubscriptionService {
         Long currentUserId = getCurrentUserId();
 
         Category category = loadCategory(request.categoryId(), tenantId);
+        PaymentMethod paymentMethod = paymentMethodService.resolveOptionalForUsage(tenantId, request.paymentMethodId());
         validateRequest(request);
         String configuredCurrency = ConfigurationContext.getCurrency().name();
         if (request.currency() != null && !request.currency().equalsIgnoreCase(configuredCurrency)) {
@@ -61,7 +66,7 @@ public class SubscriptionService {
         subscription.setEndDate(request.endDate());
         subscription.setStatus(SubscriptionLifecycleStatus.ACTIVE);
         subscription.setReminderLeadDays(resolveReminderLeadDays(request.reminderLeadDays()));
-        subscription.setPaymentMethod(request.paymentMethod());
+        subscription.setPaymentMethod(paymentMethod);
         subscription.setNotes(request.notes());
         subscription.refreshAnchorsFromNextBillingDate();
 
@@ -74,7 +79,7 @@ public class SubscriptionService {
     public Page<SubscriptionResponse> search(
             String search,
             SubscriptionLifecycleStatus status,
-            Long categoryId,
+            List<Long> categoryIds,
             SubscriptionFrequency frequency,
             LocalDate nextBillingFrom,
             LocalDate nextBillingTo,
@@ -86,11 +91,15 @@ public class SubscriptionService {
         }
 
         String normalizedSearch = normalizeSearch(search);
+        List<Long> normalizedCategoryIds = normalizeCategoryIds(categoryIds);
+        boolean applyCategoryFilter = normalizedCategoryIds != null;
+
         if (normalizedSearch == null) {
             return subscriptionRepository.searchWithoutText(
                             tenantId,
                             status,
-                            categoryId,
+                            applyCategoryFilter,
+                            normalizedCategoryIds,
                             frequency,
                             nextBillingFrom,
                             nextBillingTo,
@@ -102,7 +111,8 @@ public class SubscriptionService {
                         tenantId,
                         normalizedSearch,
                         status,
-                        categoryId,
+                        applyCategoryFilter,
+                        normalizedCategoryIds,
                         frequency,
                         nextBillingFrom,
                         nextBillingTo,
@@ -128,6 +138,7 @@ public class SubscriptionService {
         }
 
         Category category = loadCategory(request.categoryId(), tenantId);
+        PaymentMethod paymentMethod = paymentMethodService.resolveOptionalForUsage(tenantId, request.paymentMethodId());
         validateRequest(request);
         String configuredCurrency = ConfigurationContext.getCurrency().name();
         if (request.currency() != null && !request.currency().equalsIgnoreCase(configuredCurrency)) {
@@ -144,7 +155,7 @@ public class SubscriptionService {
         subscription.setNextBillingDate(request.nextBillingDate());
         subscription.setEndDate(request.endDate());
         subscription.setReminderLeadDays(resolveReminderLeadDays(request.reminderLeadDays()));
-        subscription.setPaymentMethod(request.paymentMethod());
+        subscription.setPaymentMethod(paymentMethod);
         subscription.setNotes(request.notes());
         subscription.refreshAnchorsFromNextBillingDate();
         subscription.setUpdatedAt(Instant.now());
@@ -257,6 +268,13 @@ public class SubscriptionService {
         return search.trim();
     }
 
+    private List<Long> normalizeCategoryIds(List<Long> categoryIds) {
+        if (categoryIds == null || categoryIds.isEmpty()) {
+            return null;
+        }
+        return categoryIds;
+    }
+
     private Long getCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null) {
@@ -300,7 +318,8 @@ public class SubscriptionService {
                 subscription.getEndDate(),
                 subscription.getStatus(),
                 subscription.getReminderLeadDays(),
-                subscription.getPaymentMethod(),
+                subscription.getPaymentMethod() != null ? subscription.getPaymentMethod().getId() : null,
+                subscription.getPaymentMethod() != null ? subscription.getPaymentMethod().getName() : null,
                 subscription.getNotes(),
                 subscription.getTenantId(),
                 subscription.getCreatedAt(),

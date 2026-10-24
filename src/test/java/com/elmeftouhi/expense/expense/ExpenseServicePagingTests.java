@@ -17,6 +17,7 @@ import com.elmeftouhi.expense.budget.service.BudgetTrackingService;
 import com.elmeftouhi.expense.category.entity.Category;
 import com.elmeftouhi.expense.category.repository.CategoryRepository;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
+import com.elmeftouhi.expense.paymentmethod.service.PaymentMethodService;
 import com.elmeftouhi.expense.expense.dto.ExpenseResponse;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
 
@@ -52,6 +53,9 @@ class ExpenseServicePagingTests {
 
     @Mock
     private BudgetTrackingService budgetTrackingService;
+
+    @Mock
+    private PaymentMethodService paymentMethodService;
 
     @InjectMocks
     private ExpenseService expenseService;

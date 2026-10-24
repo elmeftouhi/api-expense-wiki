@@ -4,6 +4,7 @@ import com.elmeftouhi.expense.expense.SubscriptionFrequency;
 import com.elmeftouhi.expense.expense.entity.Subscription;
 import com.elmeftouhi.expense.expense.SubscriptionLifecycleStatus;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -34,7 +35,7 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
                 AND (:search IS NULL OR LOWER(s.name) LIKE LOWER(CONCAT('%', :search, '%'))
                     OR LOWER(COALESCE(s.description, '')) LIKE LOWER(CONCAT('%', :search, '%')))
                 AND (:status IS NULL OR s.status = :status)
-                AND (:categoryId IS NULL OR s.category.id = :categoryId)
+                AND (:applyCategoryFilter = false OR s.category.id IN :categoryIds)
                 AND (:frequency IS NULL OR s.frequency = :frequency)
                 AND (:nextBillingFrom IS NULL OR s.nextBillingDate >= :nextBillingFrom)
                 AND (:nextBillingTo IS NULL OR s.nextBillingDate <= :nextBillingTo)
@@ -43,7 +44,8 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
             @Param("tenantId") Long tenantId,
             @Param("search") String search,
             @Param("status") SubscriptionLifecycleStatus status,
-            @Param("categoryId") Long categoryId,
+            @Param("applyCategoryFilter") boolean applyCategoryFilter,
+            @Param("categoryIds") Collection<Long> categoryIds,
             @Param("frequency") SubscriptionFrequency frequency,
             @Param("nextBillingFrom") LocalDate nextBillingFrom,
             @Param("nextBillingTo") LocalDate nextBillingTo,
@@ -53,7 +55,7 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
             SELECT s FROM Subscription s
             WHERE s.tenantId = :tenantId
                 AND (:status IS NULL OR s.status = :status)
-                AND (:categoryId IS NULL OR s.category.id = :categoryId)
+                AND (:applyCategoryFilter = false OR s.category.id IN :categoryIds)
                 AND (:frequency IS NULL OR s.frequency = :frequency)
                 AND (:nextBillingFrom IS NULL OR s.nextBillingDate >= :nextBillingFrom)
                 AND (:nextBillingTo IS NULL OR s.nextBillingDate <= :nextBillingTo)
@@ -61,7 +63,8 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     Page<Subscription> searchWithoutText(
             @Param("tenantId") Long tenantId,
             @Param("status") SubscriptionLifecycleStatus status,
-            @Param("categoryId") Long categoryId,
+            @Param("applyCategoryFilter") boolean applyCategoryFilter,
+            @Param("categoryIds") Collection<Long> categoryIds,
             @Param("frequency") SubscriptionFrequency frequency,
             @Param("nextBillingFrom") LocalDate nextBillingFrom,
             @Param("nextBillingTo") LocalDate nextBillingTo,

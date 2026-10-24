@@ -37,7 +37,7 @@ public record SubscriptionCreateRequest(
         @PositiveOrZero(message = "Reminder lead time must be zero or positive")
         Integer reminderLeadDays,
 
-        String paymentMethod,
+        Long paymentMethodId,
 
         String notes
 ) {
