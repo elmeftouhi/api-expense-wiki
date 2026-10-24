@@ -13,6 +13,8 @@ import com.elmeftouhi.expense.budget.entity.ExpenseBudgetSnapshot;
 import com.elmeftouhi.expense.category.entity.Category;
 import com.elmeftouhi.expense.category.repository.CategoryRepository;
 import com.elmeftouhi.expense.expense.dto.ExpenseCreateRequest;
+import com.elmeftouhi.expense.expense.dto.ExpenseDailyChartResponse;
+import com.elmeftouhi.expense.expense.dto.ExpenseMonthlyChartResponse;
 import com.elmeftouhi.expense.expense.dto.ExpenseResponse;
 import com.elmeftouhi.expense.expense.dto.ExpenseStatisticsResponse;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
@@ -27,7 +29,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -281,6 +285,66 @@ public class ExpenseService {
                 pendingExpenses.size(),
                 byCategory
         );
+    }
+
+    @Transactional(readOnly = true)
+    public ExpenseDailyChartResponse getDailyTotalsForMonth(Integer year, Integer month) {
+        LocalDate today = LocalDate.now();
+        int effectiveYear = year != null ? year : today.getYear();
+        int effectiveMonth = month != null ? month : today.getMonthValue();
+
+        if (effectiveMonth < 1 || effectiveMonth > 12) {
+            throw new BadRequestException("month must be between 1 and 12");
+        }
+
+        Long tenantId = TenantContext.getRequiredTenantId();
+        YearMonth yearMonth = YearMonth.of(effectiveYear, effectiveMonth);
+        LocalDate startDate = yearMonth.atDay(1);
+        LocalDate endDate = yearMonth.atEndOfMonth();
+
+        List<Expense> expenses = expenseRepository.findByTenantIdAndDueDateBetweenAndDeletedFalse(tenantId, startDate, endDate);
+        Map<Integer, BigDecimal> totalsByDay = aggregateTotalsByPeriod(expenses, true);
+
+        List<ExpenseDailyChartResponse.DayTotal> totals = new ArrayList<>();
+        for (int day = 1; day <= yearMonth.lengthOfMonth(); day++) {
+            totals.add(new ExpenseDailyChartResponse.DayTotal(day, totalsByDay.getOrDefault(day, BigDecimal.ZERO)));
+        }
+
+        return new ExpenseDailyChartResponse(effectiveYear, effectiveMonth, totals);
+    }
+
+    @Transactional(readOnly = true)
+    public ExpenseMonthlyChartResponse getMonthlyTotalsForYear(Integer year) {
+        int effectiveYear = year != null ? year : LocalDate.now().getYear();
+
+        Long tenantId = TenantContext.getRequiredTenantId();
+        List<ExpenseMonthlyChartResponse.MonthTotal> currentYearTotals = buildMonthlyTotalsForYear(tenantId, effectiveYear);
+        List<ExpenseMonthlyChartResponse.MonthTotal> previousYearTotals = buildMonthlyTotalsForYear(tenantId, effectiveYear - 1);
+
+        return new ExpenseMonthlyChartResponse(effectiveYear, currentYearTotals, previousYearTotals);
+    }
+
+    private List<ExpenseMonthlyChartResponse.MonthTotal> buildMonthlyTotalsForYear(Long tenantId, int year) {
+        LocalDate startDate = LocalDate.of(year, 1, 1);
+        LocalDate endDate = LocalDate.of(year, 12, 31);
+        List<Expense> expenses = expenseRepository.findByTenantIdAndDueDateBetweenAndDeletedFalse(tenantId, startDate, endDate);
+        Map<Integer, BigDecimal> totalsByMonth = aggregateTotalsByPeriod(expenses, false);
+
+        List<ExpenseMonthlyChartResponse.MonthTotal> totals = new ArrayList<>();
+        for (int month = 1; month <= 12; month++) {
+            totals.add(new ExpenseMonthlyChartResponse.MonthTotal(month, totalsByMonth.getOrDefault(month, BigDecimal.ZERO)));
+        }
+
+        return totals;
+    }
+
+    private Map<Integer, BigDecimal> aggregateTotalsByPeriod(List<Expense> expenses, boolean dayGranularity) {
+        Map<Integer, BigDecimal> totals = new LinkedHashMap<>();
+        for (Expense expense : expenses) {
+            int period = dayGranularity ? expense.getDueDate().getDayOfMonth() : expense.getDueDate().getMonthValue();
+            totals.merge(period, expense.getAmount(), BigDecimal::add);
+        }
+        return totals;
     }
 
     private List<ExpenseStatisticsResponse.CategorySummary> buildCategorySummary(

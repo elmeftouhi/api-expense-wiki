@@ -12,6 +12,8 @@ import com.elmeftouhi.expense.budget.service.BudgetTrackingService;
 import com.elmeftouhi.expense.category.entity.Category;
 import com.elmeftouhi.expense.category.repository.CategoryRepository;
 import com.elmeftouhi.expense.expense.dto.ExpenseCreateRequest;
+import com.elmeftouhi.expense.expense.dto.ExpenseDailyChartResponse;
+import com.elmeftouhi.expense.expense.dto.ExpenseMonthlyChartResponse;
 import com.elmeftouhi.expense.expense.dto.ExpenseResponse;
 import com.elmeftouhi.expense.expense.dto.ExpenseStatisticsResponse;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
@@ -445,6 +447,106 @@ class ExpenseServiceTests {
         assertEquals(BigDecimal.valueOf(10), secondSubCategory.parentTotal());
 
         verify(expenseRepository, never()).sumByCategoryAndDateRange(tenantId, 1L, startDate, endDate);
+    }
+
+    @Test
+    @DisplayName("Should return all days of month and fill missing daily totals with zero")
+    void testGetDailyTotalsForMonthWithZeroFill() {
+        Expense first = new Expense();
+        first.setDueDate(LocalDate.of(2026, 10, 1));
+        first.setAmount(BigDecimal.valueOf(12));
+
+        Expense second = new Expense();
+        second.setDueDate(LocalDate.of(2026, 10, 3));
+        second.setAmount(BigDecimal.valueOf(8));
+
+        Expense third = new Expense();
+        third.setDueDate(LocalDate.of(2026, 10, 3));
+        third.setAmount(BigDecimal.valueOf(2));
+
+        when(expenseRepository.findByTenantIdAndDueDateBetweenAndDeletedFalse(
+                tenantId, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31)))
+                .thenReturn(List.of(first, second, third));
+
+        ExpenseDailyChartResponse response = expenseService.getDailyTotalsForMonth(2026, 10);
+
+        assertEquals(31, response.totals().size());
+        assertEquals(BigDecimal.valueOf(12), response.totals().get(0).total());
+        assertEquals(BigDecimal.ZERO, response.totals().get(1).total());
+        assertEquals(BigDecimal.valueOf(10), response.totals().get(2).total());
+        assertEquals(BigDecimal.ZERO, response.totals().get(30).total());
+    }
+
+    @Test
+    @DisplayName("Should return 12 months for current and previous year with zero-filled totals")
+    void testGetMonthlyTotalsForYearWithPreviousYearComparisonAndZeroFill() {
+        Expense januaryCurrent = new Expense();
+        januaryCurrent.setDueDate(LocalDate.of(2026, 1, 5));
+        januaryCurrent.setAmount(BigDecimal.valueOf(50));
+
+        Expense marchCurrent = new Expense();
+        marchCurrent.setDueDate(LocalDate.of(2026, 3, 10));
+        marchCurrent.setAmount(BigDecimal.valueOf(70));
+
+        Expense februaryPrevious = new Expense();
+        februaryPrevious.setDueDate(LocalDate.of(2025, 2, 20));
+        februaryPrevious.setAmount(BigDecimal.valueOf(30));
+
+        when(expenseRepository.findByTenantIdAndDueDateBetweenAndDeletedFalse(
+                tenantId, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)))
+                .thenReturn(List.of(januaryCurrent, marchCurrent));
+        when(expenseRepository.findByTenantIdAndDueDateBetweenAndDeletedFalse(
+                tenantId, LocalDate.of(2025, 1, 1), LocalDate.of(2025, 12, 31)))
+                .thenReturn(List.of(februaryPrevious));
+
+        ExpenseMonthlyChartResponse response = expenseService.getMonthlyTotalsForYear(2026);
+
+        assertEquals(12, response.totals().size());
+        assertEquals(12, response.previousYearTotals().size());
+
+        assertEquals(BigDecimal.valueOf(50), response.totals().get(0).total());
+        assertEquals(BigDecimal.ZERO, response.totals().get(1).total());
+        assertEquals(BigDecimal.valueOf(70), response.totals().get(2).total());
+
+        assertEquals(BigDecimal.ZERO, response.previousYearTotals().get(0).total());
+        assertEquals(BigDecimal.valueOf(30), response.previousYearTotals().get(1).total());
+        assertEquals(BigDecimal.ZERO, response.previousYearTotals().get(2).total());
+    }
+
+    @Test
+    @DisplayName("Should default missing year and month to current date for daily chart totals")
+    void testGetDailyTotalsForMonthDefaultsToCurrentWhenMissing() {
+        LocalDate today = LocalDate.now();
+        LocalDate expectedStart = today.withDayOfMonth(1);
+        LocalDate expectedEnd = today.withDayOfMonth(today.lengthOfMonth());
+
+        when(expenseRepository.findByTenantIdAndDueDateBetweenAndDeletedFalse(tenantId, expectedStart, expectedEnd))
+                .thenReturn(List.of());
+
+        ExpenseDailyChartResponse response = expenseService.getDailyTotalsForMonth(null, null);
+
+        assertEquals(today.getYear(), response.year());
+        assertEquals(today.getMonthValue(), response.month());
+        assertEquals(today.lengthOfMonth(), response.totals().size());
+    }
+
+    @Test
+    @DisplayName("Should default missing year to current year for monthly chart totals")
+    void testGetMonthlyTotalsForYearDefaultsToCurrentWhenMissing() {
+        int currentYear = LocalDate.now().getYear();
+
+        when(expenseRepository.findByTenantIdAndDueDateBetweenAndDeletedFalse(
+                tenantId, LocalDate.of(currentYear, 1, 1), LocalDate.of(currentYear, 12, 31)))
+                .thenReturn(List.of());
+        when(expenseRepository.findByTenantIdAndDueDateBetweenAndDeletedFalse(
+                tenantId, LocalDate.of(currentYear - 1, 1, 1), LocalDate.of(currentYear - 1, 12, 31)))
+                .thenReturn(List.of());
+
+        ExpenseMonthlyChartResponse response = expenseService.getMonthlyTotalsForYear(null);
+
+        assertEquals(currentYear, response.year());
+        assertEquals(12, response.totals().size());
+        assertEquals(12, response.previousYearTotals().size());
     }
 }
 

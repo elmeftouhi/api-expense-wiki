@@ -3,6 +3,8 @@ package com.elmeftouhi.expense.expense.controller;
 import com.elmeftouhi.expense.expense.service.ExpenseService;
 import com.elmeftouhi.expense.expense.ExpenseType;
 import com.elmeftouhi.expense.expense.dto.ExpenseCreateRequest;
+import com.elmeftouhi.expense.expense.dto.ExpenseDailyChartResponse;
+import com.elmeftouhi.expense.expense.dto.ExpenseMonthlyChartResponse;
 import com.elmeftouhi.expense.expense.dto.ExpensePageResponse;
 import com.elmeftouhi.expense.expense.dto.ExpenseResponse;
 import com.elmeftouhi.expense.expense.dto.ExpenseStatisticsResponse;
@@ -157,6 +159,30 @@ public class ExpenseController {
         LocalDate start = startDate != null ? startDate : LocalDate.now().withDayOfMonth(1);
         LocalDate end = endDate != null ? endDate : LocalDate.now();
         return expenseService.getStatistics(start, end);
+    }
+
+    @GetMapping("/charts/daily")
+    @Operation(summary = "Get daily chart totals", description = "Returns day-by-day totals for a given year and month, filling missing days with zero")
+    @ApiResponse(responseCode = "200", description = "Daily chart totals returned successfully")
+    public ExpenseDailyChartResponse getDailyChartTotals(
+            @Parameter(description = "Year", example = "2026")
+            @RequestParam(required = false) Integer year,
+            @Parameter(description = "Month (1-12)", example = "10")
+            @RequestParam(required = false) Integer month) {
+        LocalDate today = LocalDate.now();
+        Integer effectiveYear = year != null ? year : today.getYear();
+        Integer effectiveMonth = month != null ? month : today.getMonthValue();
+        return expenseService.getDailyTotalsForMonth(effectiveYear, effectiveMonth);
+    }
+
+    @GetMapping("/charts/monthly")
+    @Operation(summary = "Get monthly chart totals", description = "Returns month-by-month totals for a given year and previous year, filling missing months with zero")
+    @ApiResponse(responseCode = "200", description = "Monthly chart totals returned successfully")
+    public ExpenseMonthlyChartResponse getMonthlyChartTotals(
+            @Parameter(description = "Year", example = "2026")
+            @RequestParam(required = false) Integer year) {
+        Integer effectiveYear = year != null ? year : LocalDate.now().getYear();
+        return expenseService.getMonthlyTotalsForYear(effectiveYear);
     }
 
 }
