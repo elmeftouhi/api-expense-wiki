@@ -13,6 +13,7 @@ import com.elmeftouhi.expense.category.entity.Category;
 import com.elmeftouhi.expense.category.repository.CategoryRepository;
 import com.elmeftouhi.expense.expense.dto.ExpenseCreateRequest;
 import com.elmeftouhi.expense.expense.dto.ExpenseResponse;
+import com.elmeftouhi.expense.expense.dto.ExpenseStatisticsResponse;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
 import com.elmeftouhi.expense.paymentmethod.entity.PaymentMethod;
 import com.elmeftouhi.expense.paymentmethod.service.PaymentMethodService;
@@ -25,6 +26,7 @@ import com.elmeftouhi.expense.tenantconfig.entity.TenantConfiguration;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -380,6 +382,69 @@ class ExpenseServiceTests {
         // Then
         assertNotNull(results);
         assertFalse(results.isEmpty());
+    }
+
+    @Test
+    @DisplayName("Should build hierarchical statistics with parent totals propagated to subcategories")
+    void testGetStatisticsWithSubCategoryRollup() {
+        // Given
+        LocalDate startDate = LocalDate.of(2026, 10, 1);
+        LocalDate endDate = LocalDate.of(2026, 10, 31);
+
+        Category root = new Category();
+        root.setId(1L);
+        root.setName("Food");
+
+        Category groceries = new Category();
+        groceries.setId(2L);
+        groceries.setName("Groceries");
+
+        Category restaurants = new Category();
+        restaurants.setId(3L);
+        restaurants.setName("Restaurants");
+
+        when(expenseRepository.sumByTenantAndStatusAndDateRange(tenantId, ExpenseStatus.PENDING, startDate, endDate))
+                .thenReturn(BigDecimal.valueOf(10));
+        when(expenseRepository.sumByTenantAndStatusAndDateRange(tenantId, ExpenseStatus.PAID, startDate, endDate))
+                .thenReturn(BigDecimal.valueOf(20));
+        when(expenseRepository.sumByTenantAndStatusAndDateRange(tenantId, ExpenseStatus.OVERDUE, startDate, endDate))
+                .thenReturn(BigDecimal.valueOf(5));
+
+        when(expenseRepository.findByTenantIdAndStatusAndDeletedFalse(tenantId, ExpenseStatus.PENDING))
+                .thenReturn(List.of(new Expense(), new Expense()));
+        when(expenseRepository.findByTenantIdAndStatusAndDeletedFalse(tenantId, ExpenseStatus.OVERDUE))
+                .thenReturn(List.of(new Expense()));
+
+        when(categoryRepository.findRootCategories(tenantId, false)).thenReturn(List.of(root));
+        when(categoryRepository.findChildCategories(tenantId, 1L, false)).thenReturn(List.of(groceries, restaurants));
+        when(categoryRepository.findChildCategories(tenantId, 2L, false)).thenReturn(List.of());
+        when(categoryRepository.findChildCategories(tenantId, 3L, false)).thenReturn(List.of());
+
+        when(expenseRepository.sumByCategoryAndDateRange(tenantId, 2L, startDate, endDate))
+                .thenReturn(BigDecimal.valueOf(7));
+        when(expenseRepository.sumByCategoryAndDateRange(tenantId, 3L, startDate, endDate))
+                .thenReturn(BigDecimal.valueOf(3));
+
+        // When
+        ExpenseStatisticsResponse response = expenseService.getStatistics(startDate, endDate);
+
+        // Then
+        assertEquals(BigDecimal.valueOf(35), response.totalExpenses());
+        assertEquals(1, response.byCategory().size());
+
+        ExpenseStatisticsResponse.CategorySummary parentSummary = response.byCategory().get(0);
+        assertEquals(1L, parentSummary.categoryId());
+        assertEquals("Food", parentSummary.categoryName());
+        assertEquals(BigDecimal.valueOf(10), parentSummary.total());
+        assertNull(parentSummary.parentTotal());
+        assertEquals(2, parentSummary.subCategories().size());
+
+        ExpenseStatisticsResponse.CategorySummary firstSubCategory = parentSummary.subCategories().get(0);
+        ExpenseStatisticsResponse.CategorySummary secondSubCategory = parentSummary.subCategories().get(1);
+        assertEquals(BigDecimal.valueOf(10), firstSubCategory.parentTotal());
+        assertEquals(BigDecimal.valueOf(10), secondSubCategory.parentTotal());
+
+        verify(expenseRepository, never()).sumByCategoryAndDateRange(tenantId, 1L, startDate, endDate);
     }
 }
 

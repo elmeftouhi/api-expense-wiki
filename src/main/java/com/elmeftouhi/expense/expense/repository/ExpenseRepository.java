@@ -40,7 +40,7 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             SELECT e FROM Expense e
             WHERE e.tenantId = :tenantId
                 AND e.deleted = false
-                AND e.dueDate BETWEEN :startDate AND :endDate
+                AND e.paidDate BETWEEN :startDate AND :endDate
                 AND (:categoryId IS NULL OR e.category.id = :categoryId)
                 AND (:type IS NULL OR e.type = :type)
             """)

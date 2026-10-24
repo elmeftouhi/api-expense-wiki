@@ -23,7 +23,6 @@ import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
 import com.elmeftouhi.expense.tenantconfig.ConfigurationContext;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -290,21 +289,59 @@ public class ExpenseService {
         List<ExpenseStatisticsResponse.CategorySummary> summaries = new ArrayList<>();
 
         for (Category category : categories) {
-            BigDecimal total = expenseRepository.sumByCategoryAndDateRange(tenantId, category.getId(), startDate, endDate);
-            BigDecimal budget = category.getMonthlyBudget() != null ? category.getMonthlyBudget() : BigDecimal.ZERO;
-            int percentage = budget.compareTo(BigDecimal.ZERO) == 0 ? 0 :
-                    total.multiply(BigDecimal.valueOf(100)).divide(budget, 0, RoundingMode.HALF_UP).intValue();
-
-            summaries.add(new ExpenseStatisticsResponse.CategorySummary(
-                    category.getId(),
-                    category.getName(),
-                    total,
-                    budget,
-                    Math.min(percentage, 100)
-            ));
+            CategorySummaryNode node = buildCategorySummaryNode(tenantId, category, startDate, endDate);
+            summaries.add(toCategorySummary(node, null));
         }
 
         return summaries;
+    }
+
+    private CategorySummaryNode buildCategorySummaryNode(
+            Long tenantId,
+            Category category,
+            LocalDate startDate,
+            LocalDate endDate) {
+        List<Category> childCategories = categoryRepository.findChildCategories(tenantId, category.getId(), false);
+        List<CategorySummaryNode> childNodes = new ArrayList<>();
+
+        for (Category child : childCategories) {
+            childNodes.add(buildCategorySummaryNode(tenantId, child, startDate, endDate));
+        }
+
+        BigDecimal total;
+        if (childNodes.isEmpty()) {
+            total = expenseRepository.sumByCategoryAndDateRange(tenantId, category.getId(), startDate, endDate);
+        } else {
+            total = childNodes.stream()
+                    .map(CategorySummaryNode::total)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+
+        return new CategorySummaryNode(category.getId(), category.getName(), total, childNodes);
+    }
+
+    private ExpenseStatisticsResponse.CategorySummary toCategorySummary(
+            CategorySummaryNode node,
+            BigDecimal parentTotal) {
+        List<ExpenseStatisticsResponse.CategorySummary> subCategories = node.subCategories().stream()
+                .map(child -> toCategorySummary(child, node.total()))
+                .toList();
+
+        return new ExpenseStatisticsResponse.CategorySummary(
+                node.categoryId(),
+                node.categoryName(),
+                node.total(),
+                parentTotal,
+                subCategories
+        );
+    }
+
+    private record CategorySummaryNode(
+            Long categoryId,
+            String categoryName,
+            BigDecimal total,
+            List<CategorySummaryNode> subCategories
+    ) {
     }
 
     private Expense loadExpense(Long id, Long tenantId) {

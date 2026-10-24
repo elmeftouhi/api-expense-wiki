@@ -16,8 +16,8 @@ public record ExpenseStatisticsResponse(
             Long categoryId,
             String categoryName,
             BigDecimal total,
-            BigDecimal budget,
-            Integer percentage
+            BigDecimal parentTotal,
+            List<CategorySummary> subCategories
     ) {
     }
 }
