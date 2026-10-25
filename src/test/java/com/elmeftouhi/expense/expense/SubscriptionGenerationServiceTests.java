@@ -89,6 +89,57 @@ class SubscriptionGenerationServiceTests {
         verify(expenseService, never()).createGeneratedExpenseFromSubscription(any(), any());
     }
 
+    @Test
+    void generateBackfillOccurrence_createsExpenseAndOccurrenceWithPaidDate() {
+        Long tenantId = 1L;
+        Long subscriptionId = 10L;
+        LocalDate nextBillingDate = LocalDate.of(2026, 8, 1);
+        LocalDate scheduledBillingDate = LocalDate.of(2026, 9, 1);
+        LocalDate paidDate = LocalDate.of(2026, 9, 2);
+
+        Subscription subscription = dueSubscription(tenantId, subscriptionId, nextBillingDate);
+        Expense generatedExpense = new Expense();
+        generatedExpense.setId(109L);
+
+        when(subscriptionRepository.findForUpdate(subscriptionId, tenantId)).thenReturn(Optional.of(subscription));
+        when(paymentRepository.existsByTenantIdAndSubscriptionIdAndScheduledBillingDate(tenantId, subscriptionId, scheduledBillingDate))
+                .thenReturn(false);
+        when(expenseService.createGeneratedExpenseFromSubscription(subscription, scheduledBillingDate, paidDate))
+                .thenReturn(generatedExpense);
+
+        boolean generated = subscriptionGenerationService.generateBackfillOccurrence(
+                tenantId,
+                subscriptionId,
+                scheduledBillingDate,
+                paidDate);
+
+        assertTrue(generated);
+        verify(paymentRepository).save(any(SubscriptionPayment.class));
+        verify(expenseService).createGeneratedExpenseFromSubscription(subscription, scheduledBillingDate, paidDate);
+    }
+
+    @Test
+    void generateBackfillOccurrence_isIdempotentWhenOccurrenceAlreadyExists() {
+        Long tenantId = 1L;
+        Long subscriptionId = 10L;
+        LocalDate scheduledBillingDate = LocalDate.of(2026, 9, 1);
+
+        Subscription subscription = dueSubscription(tenantId, subscriptionId, LocalDate.of(2026, 8, 1));
+
+        when(subscriptionRepository.findForUpdate(subscriptionId, tenantId)).thenReturn(Optional.of(subscription));
+        when(paymentRepository.existsByTenantIdAndSubscriptionIdAndScheduledBillingDate(tenantId, subscriptionId, scheduledBillingDate))
+                .thenReturn(true);
+
+        boolean generated = subscriptionGenerationService.generateBackfillOccurrence(
+                tenantId,
+                subscriptionId,
+                scheduledBillingDate,
+                scheduledBillingDate);
+
+        assertFalse(generated);
+        verify(expenseService, never()).createGeneratedExpenseFromSubscription(any(), any(), any());
+    }
+
     private Subscription dueSubscription(Long tenantId, Long id, LocalDate nextBillingDate) {
         Category category = new Category();
         category.setId(1L);

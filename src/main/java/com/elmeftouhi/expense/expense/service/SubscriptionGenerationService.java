@@ -87,10 +87,62 @@ public class SubscriptionGenerationService {
         }
     }
 
+    @Transactional
+    public boolean generateBackfillOccurrence(
+            Long tenantId,
+            Long subscriptionId,
+            LocalDate scheduledBillingDate,
+            LocalDate paidDate) {
+        Subscription subscription = subscriptionRepository.findForUpdate(subscriptionId, tenantId)
+                .orElse(null);
+        if (subscription == null) {
+            return false;
+        }
+
+        if (paymentRepository.existsByTenantIdAndSubscriptionIdAndScheduledBillingDate(
+                tenantId,
+                subscriptionId,
+                scheduledBillingDate)) {
+            return false;
+        }
+
+        try {
+            Expense generatedExpense = expenseService.createGeneratedExpenseFromSubscription(
+                    subscription,
+                    scheduledBillingDate,
+                    paidDate);
+
+            SubscriptionPayment payment = new SubscriptionPayment();
+            payment.assignTenantId(tenantId);
+            payment.setSubscription(subscription);
+            payment.setExpense(generatedExpense);
+            payment.setScheduledBillingDate(scheduledBillingDate);
+            paymentRepository.save(payment);
+
+            advanceSubscriptionAfterDate(subscription, scheduledBillingDate);
+            return true;
+        } catch (DataIntegrityViolationException duplicate) {
+            log.info("Duplicate backfill payment suppressed for subscription {} on {}", subscriptionId, scheduledBillingDate);
+            advanceSubscriptionAfterDate(subscription, scheduledBillingDate);
+            return false;
+        }
+    }
+
     private void advanceSubscription(Subscription subscription) {
         LocalDate nextDate = subscription.calculateNextBillingDate();
         subscription.setNextBillingDate(nextDate);
         if (subscription.getEndDate() != null && nextDate.isAfter(subscription.getEndDate())) {
+            subscription.setStatus(SubscriptionLifecycleStatus.ENDED);
+        }
+        subscription.setUpdatedAt(Instant.now());
+        subscriptionRepository.save(subscription);
+    }
+
+    private void advanceSubscriptionAfterDate(Subscription subscription, LocalDate paidOccurrenceDate) {
+        while (!subscription.getNextBillingDate().isAfter(paidOccurrenceDate)) {
+            subscription.setNextBillingDate(subscription.calculateNextBillingDate());
+        }
+        if (subscription.getEndDate() != null && subscription.getNextBillingDate().isAfter(subscription.getEndDate())) {
             subscription.setStatus(SubscriptionLifecycleStatus.ENDED);
         }
         subscription.setUpdatedAt(Instant.now());

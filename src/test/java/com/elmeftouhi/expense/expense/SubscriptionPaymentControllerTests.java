@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 
 import com.elmeftouhi.expense.expense.controller.SubscriptionPaymentController;
 import com.elmeftouhi.expense.expense.dto.SubscriptionPaymentGenerationResponse;
+import com.elmeftouhi.expense.expense.dto.SubscriptionPaymentBackfillRequest;
 import com.elmeftouhi.expense.expense.dto.SubscriptionPaymentPageResponse;
 import com.elmeftouhi.expense.expense.dto.SubscriptionPaymentResponse;
 import com.elmeftouhi.expense.expense.service.SubscriptionPaymentService;
@@ -89,6 +90,31 @@ class SubscriptionPaymentControllerTests {
         assertEquals(false, response.alreadyExists());
         assertEquals(501L, response.paymentId());
         verify(subscriptionPaymentService).generateNextPayment(subscriptionId);
+    }
+
+    @Test
+    void backfillSubscriptionPayment_delegatesToService() {
+        Long subscriptionId = 42L;
+        SubscriptionPaymentBackfillRequest request = new SubscriptionPaymentBackfillRequest(
+                LocalDate.of(2026, 9, 1),
+                LocalDate.of(2026, 9, 1));
+        SubscriptionPaymentGenerationResponse serviceResponse = new SubscriptionPaymentGenerationResponse(
+                true,
+                false,
+                "Subscription backfill payment created successfully",
+                510L,
+                610L,
+                LocalDate.of(2026, 9, 1)
+        );
+
+        when(subscriptionPaymentService.backfillPayment(subscriptionId, request)).thenReturn(serviceResponse);
+
+        SubscriptionPaymentGenerationResponse response =
+                subscriptionPaymentController.backfillSubscriptionPayment(subscriptionId, request);
+
+        assertEquals(true, response.generated());
+        assertEquals(510L, response.paymentId());
+        verify(subscriptionPaymentService).backfillPayment(subscriptionId, request);
     }
 
     private SubscriptionPaymentResponse samplePayment(Long id, Long subscriptionId, Long expenseId) {

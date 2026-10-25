@@ -1,16 +1,16 @@
 package com.elmeftouhi.expense.expense.service;
 
 import com.elmeftouhi.expense.expense.dto.SubscriptionPaymentGenerationResponse;
+import com.elmeftouhi.expense.expense.dto.SubscriptionPaymentBackfillRequest;
 import com.elmeftouhi.expense.expense.dto.SubscriptionPaymentResponse;
 import com.elmeftouhi.expense.expense.entity.SubscriptionPayment;
 import com.elmeftouhi.expense.expense.entity.Subscription;
 import com.elmeftouhi.expense.expense.repository.SubscriptionPaymentRepository;
 import com.elmeftouhi.expense.expense.repository.SubscriptionRepository;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
+import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
-import com.elmeftouhi.expense.tenantconfig.ConfigurationContext;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -95,7 +95,7 @@ public class SubscriptionPaymentService {
         if (createdPayment.isPresent()) {
             message = "Payment already exists for the next scheduled billing date";
         } else {
-            LocalDate businessDate = LocalDate.now(ZoneId.of(ConfigurationContext.getTimezone()));
+            LocalDate businessDate = LocalDate.now();
             message = "Subscription is not active for generation on " + businessDate;
         }
 
@@ -103,6 +103,70 @@ public class SubscriptionPaymentService {
                 false,
                 createdPayment.isPresent(),
                 message,
+                createdPayment.map(SubscriptionPayment::getId).orElse(null),
+                createdPayment.map(payment -> payment.getExpense().getId()).orElse(null),
+                scheduledBillingDate
+        );
+    }
+
+    @Transactional
+    public SubscriptionPaymentGenerationResponse backfillPayment(Long subscriptionId, SubscriptionPaymentBackfillRequest request) {
+        Long tenantId = TenantContext.getRequiredTenantId();
+        Subscription subscription = subscriptionRepository.findByIdAndTenantId(subscriptionId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Subscription not found"));
+
+        LocalDate scheduledBillingDate = request.scheduledBillingDate();
+        LocalDate today = LocalDate.now();
+        if (scheduledBillingDate.isAfter(today)) {
+            throw new BadRequestException("scheduledBillingDate must be today or in the past");
+        }
+
+        var existingPayment = subscriptionPaymentRepository.findByTenantIdAndSubscriptionIdAndScheduledBillingDate(
+                tenantId,
+                subscriptionId,
+                scheduledBillingDate
+        );
+        if (existingPayment.isPresent()) {
+            return new SubscriptionPaymentGenerationResponse(
+                    false,
+                    true,
+                    "Payment already exists for the provided billing date",
+                    existingPayment.get().getId(),
+                    existingPayment.get().getExpense().getId(),
+                    scheduledBillingDate
+            );
+        }
+
+        boolean generated = subscriptionGenerationService.generateBackfillOccurrence(
+                tenantId,
+                subscription.getId(),
+                scheduledBillingDate,
+                request.paidDate()
+        );
+
+        var createdPayment = subscriptionPaymentRepository.findByTenantIdAndSubscriptionIdAndScheduledBillingDate(
+                tenantId,
+                subscriptionId,
+                scheduledBillingDate
+        );
+
+        if (generated && createdPayment.isPresent()) {
+            return new SubscriptionPaymentGenerationResponse(
+                    true,
+                    false,
+                    "Subscription backfill payment created successfully",
+                    createdPayment.get().getId(),
+                    createdPayment.get().getExpense().getId(),
+                    scheduledBillingDate
+            );
+        }
+
+        return new SubscriptionPaymentGenerationResponse(
+                false,
+                createdPayment.isPresent(),
+                createdPayment.isPresent()
+                        ? "Payment already exists for the provided billing date"
+                        : "Backfill payment could not be created",
                 createdPayment.map(SubscriptionPayment::getId).orElse(null),
                 createdPayment.map(payment -> payment.getExpense().getId()).orElse(null),
                 scheduledBillingDate

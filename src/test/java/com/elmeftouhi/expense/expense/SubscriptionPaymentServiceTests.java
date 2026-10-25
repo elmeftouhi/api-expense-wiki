@@ -1,12 +1,14 @@
 package com.elmeftouhi.expense.expense;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.elmeftouhi.expense.expense.dto.SubscriptionPaymentGenerationResponse;
+import com.elmeftouhi.expense.expense.dto.SubscriptionPaymentBackfillRequest;
 import com.elmeftouhi.expense.expense.entity.Expense;
 import com.elmeftouhi.expense.expense.entity.Subscription;
 import com.elmeftouhi.expense.expense.entity.SubscriptionPayment;
@@ -15,6 +17,7 @@ import com.elmeftouhi.expense.expense.repository.SubscriptionRepository;
 import com.elmeftouhi.expense.expense.service.SubscriptionGenerationService;
 import com.elmeftouhi.expense.expense.service.SubscriptionPaymentService;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
+import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Optional;
@@ -98,6 +101,52 @@ class SubscriptionPaymentServiceTests {
         assertEquals(501L, response.paymentId());
         assertEquals(701L, response.expenseId());
         verify(subscriptionGenerationService).generateDueOccurrence(tenantId, subscriptionId, scheduledDate);
+    }
+
+    @Test
+    void backfillPayment_returnsAlreadyExistsWhenSameBillingDateAlreadyCreated() {
+        Long tenantId = 1L;
+        Long subscriptionId = 10L;
+        LocalDate scheduledDate = LocalDate.now().minusDays(1);
+        TenantContext.setTenantId(tenantId);
+
+        Subscription subscription = new Subscription();
+        subscription.setId(subscriptionId);
+        subscription.assignTenantId(tenantId);
+        subscription.setNextBillingDate(LocalDate.of(2026, 11, 1));
+
+        SubscriptionPayment existingPayment = payment(502L, subscription, 702L, scheduledDate);
+
+        when(subscriptionRepository.findByIdAndTenantId(subscriptionId, tenantId)).thenReturn(Optional.of(subscription));
+        when(subscriptionPaymentRepository.findByTenantIdAndSubscriptionIdAndScheduledBillingDate(
+                tenantId, subscriptionId, scheduledDate)).thenReturn(Optional.of(existingPayment));
+
+        SubscriptionPaymentGenerationResponse response = subscriptionPaymentService.backfillPayment(
+                subscriptionId,
+                new SubscriptionPaymentBackfillRequest(scheduledDate, scheduledDate));
+
+        assertTrue(response.alreadyExists());
+        assertEquals(false, response.generated());
+        verify(subscriptionGenerationService, never()).generateBackfillOccurrence(tenantId, subscriptionId, scheduledDate, scheduledDate);
+    }
+
+    @Test
+    void backfillPayment_rejectsFutureBillingDate() {
+        Long tenantId = 1L;
+        Long subscriptionId = 10L;
+        LocalDate futureDate = LocalDate.now().plusDays(5);
+        TenantContext.setTenantId(tenantId);
+
+        Subscription subscription = new Subscription();
+        subscription.setId(subscriptionId);
+        subscription.assignTenantId(tenantId);
+        when(subscriptionRepository.findByIdAndTenantId(subscriptionId, tenantId)).thenReturn(Optional.of(subscription));
+
+        assertThrows(
+                BadRequestException.class,
+                () -> subscriptionPaymentService.backfillPayment(
+                        subscriptionId,
+                        new SubscriptionPaymentBackfillRequest(futureDate, futureDate)));
     }
 
     private SubscriptionPayment payment(Long paymentId, Subscription subscription, Long expenseId, LocalDate scheduledDate) {

@@ -146,6 +146,14 @@ public class ExpenseService {
 
     @Transactional
     public Expense createGeneratedExpenseFromSubscription(Subscription subscription, LocalDate scheduledBillingDate) {
+        return createGeneratedExpenseFromSubscription(subscription, scheduledBillingDate, null);
+    }
+
+    @Transactional
+    public Expense createGeneratedExpenseFromSubscription(
+            Subscription subscription,
+            LocalDate scheduledBillingDate,
+            LocalDate paidDate) {
         Expense expense = new Expense();
         expense.assignTenantId(subscription.getTenantId());
         expense.setCategory(subscription.getCategory());
@@ -154,8 +162,9 @@ public class ExpenseService {
         expense.setAmount(subscription.getAmount());
         expense.setCurrency(subscription.getCurrency());
         expense.setType(ExpenseType.SUBSCRIPTION);
-        expense.setStatus(ExpenseStatus.PENDING);
+        expense.setStatus(paidDate != null ? ExpenseStatus.PAID : ExpenseStatus.PENDING);
         expense.setDueDate(scheduledBillingDate);
+        expense.setPaidDate(paidDate);
         expense.setPaymentMethod(subscription.getPaymentMethod());
         expense.setNotes(subscription.getNotes());
         Expense saved = expenseRepository.save(expense);
