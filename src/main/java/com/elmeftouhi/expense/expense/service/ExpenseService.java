@@ -51,7 +51,13 @@ public class ExpenseService {
     private final PaymentMethodService paymentMethodService;
 
     @Transactional(readOnly = true)
-    public Page<ExpenseResponse> findAll(Integer year, Integer month, Long categoryId, ExpenseType type, Pageable pageable) {
+    public Page<ExpenseResponse> findAll(
+            Integer year,
+            Integer month,
+            Long categoryId,
+            ExpenseType type,
+            ExpenseStatus paymentStatus,
+            Pageable pageable) {
         Long tenantId = TenantContext.getRequiredTenantId();
 
         if (month != null && (month < 1 || month > 12)) {
@@ -59,6 +65,9 @@ public class ExpenseService {
         }
         if (month != null && year == null) {
             throw new BadRequestException("year is required when month is provided");
+        }
+        if (paymentStatus != null && paymentStatus != ExpenseStatus.PAID && paymentStatus != ExpenseStatus.PENDING) {
+            throw new BadRequestException("paymentStatus must be PAID or PENDING");
         }
 
         if (categoryId != null) {
@@ -82,7 +91,14 @@ public class ExpenseService {
             endDate = targetMonth.atEndOfMonth();
         }
 
-        return expenseRepository.findPageByTenantAndFilters(tenantId, startDate, endDate, categoryId, type, pageable)
+        return expenseRepository.findPageByTenantAndFilters(
+                        tenantId,
+                        startDate,
+                        endDate,
+                        categoryId,
+                        type,
+                        paymentStatus,
+                        pageable)
                 .map(this::toResponse);
     }
 

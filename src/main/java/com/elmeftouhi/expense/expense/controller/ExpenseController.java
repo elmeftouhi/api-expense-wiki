@@ -1,6 +1,7 @@
 package com.elmeftouhi.expense.expense.controller;
 
 import com.elmeftouhi.expense.expense.service.ExpenseService;
+import com.elmeftouhi.expense.expense.ExpenseStatus;
 import com.elmeftouhi.expense.expense.ExpenseType;
 import com.elmeftouhi.expense.expense.dto.ExpenseCreateRequest;
 import com.elmeftouhi.expense.expense.dto.ExpenseDailyChartResponse;
@@ -9,6 +10,7 @@ import com.elmeftouhi.expense.expense.dto.ExpensePageResponse;
 import com.elmeftouhi.expense.expense.dto.ExpenseResponse;
 import com.elmeftouhi.expense.expense.dto.ExpenseStatisticsResponse;
 import com.elmeftouhi.expense.expense.dto.ExpenseStatusChangeRequest;
+import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -16,6 +18,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
+import java.util.Locale;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -56,8 +59,16 @@ public class ExpenseController {
             @RequestParam(required = false) Long categoryId,
             @Parameter(description = "Filter by expense type")
             @RequestParam(required = false) ExpenseType type,
+            @Parameter(description = "Filter by payment status (paid or pending)")
+            @RequestParam(required = false) String paymentStatus,
             @PageableDefault(size = 20, sort = "dueDate", direction = Sort.Direction.DESC) Pageable pageable) {
-        Page<ExpenseResponse> pageResult = expenseService.findAll(year, month, categoryId, type, pageable);
+        Page<ExpenseResponse> pageResult = expenseService.findAll(
+                year,
+                month,
+                categoryId,
+                type,
+                parsePaymentStatus(paymentStatus),
+                pageable);
         return new ExpensePageResponse(
                 pageResult.getContent(),
                 pageResult.getNumber(),
@@ -183,6 +194,18 @@ public class ExpenseController {
             @RequestParam(required = false) Integer year) {
         Integer effectiveYear = year != null ? year : LocalDate.now().getYear();
         return expenseService.getMonthlyTotalsForYear(effectiveYear);
+    }
+
+    private ExpenseStatus parsePaymentStatus(String paymentStatus) {
+        if (paymentStatus == null || paymentStatus.isBlank()) {
+            return null;
+        }
+
+        try {
+            return ExpenseStatus.valueOf(paymentStatus.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException("paymentStatus must be paid or pending");
+        }
     }
 
 }
