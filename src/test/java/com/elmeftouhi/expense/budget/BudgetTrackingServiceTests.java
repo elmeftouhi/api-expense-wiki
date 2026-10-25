@@ -9,7 +9,6 @@ import com.elmeftouhi.expense.budget.entity.Budget;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
@@ -17,13 +16,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.elmeftouhi.expense.category.entity.Category;
+import com.elmeftouhi.expense.expense.ExpenseStatus;
 import com.elmeftouhi.expense.notification.service.NotificationService;
-import com.elmeftouhi.expense.shared.exception.BadRequestException;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -63,7 +60,8 @@ class BudgetTrackingServiceTests {
                 9L,
                 categoryId,
                 BigDecimal.valueOf(50),
-                Instant.parse("2026-10-14T12:00:00Z")
+                ExpenseStatus.PAID,
+                LocalDate.of(2026, 10, 14)
         );
 
         LocalDate startDate = LocalDate.of(2026, 10, 1);
@@ -84,8 +82,8 @@ class BudgetTrackingServiceTests {
     }
 
     @Test
-    @DisplayName("applyExpenseUpdated rejects linking old expense when period instance does not exist")
-    void applyExpenseUpdated_rejectsMissingPeriodForExistingExpense() {
+    @DisplayName("applyExpenseUpdated skips missing historical period and applies paid current snapshot")
+    void applyExpenseUpdated_skipsMissingHistoricalPeriod() {
         Long tenantId = 1L;
 
         ExpenseBudgetSnapshot previous = new ExpenseBudgetSnapshot(
@@ -94,7 +92,8 @@ class BudgetTrackingServiceTests {
                 9L,
                 99L,
                 BigDecimal.valueOf(30),
-                Instant.parse("2026-09-01T12:00:00Z")
+                ExpenseStatus.PAID,
+                LocalDate.of(2026, 9, 1)
         );
 
         ExpenseBudgetSnapshot current = new ExpenseBudgetSnapshot(
@@ -103,7 +102,8 @@ class BudgetTrackingServiceTests {
                 9L,
                 5L,
                 BigDecimal.valueOf(30),
-                Instant.parse("2026-09-01T12:00:00Z")
+                ExpenseStatus.PAID,
+                LocalDate.of(2026, 9, 1)
         );
 
         Budget budget = buildBudget(10L, tenantId, 5L);
@@ -114,7 +114,9 @@ class BudgetTrackingServiceTests {
         when(budgetPeriodInstanceRepository.findByBudgetIdAndTenantIdAndStartDate(budget.getId(), tenantId, startDate))
                 .thenReturn(Optional.empty());
 
-        assertThrows(BadRequestException.class, () -> budgetTrackingService.applyExpenseUpdated(previous, current));
+        budgetTrackingService.applyExpenseUpdated(previous, current);
+
+        verify(budgetPeriodInstanceRepository, never()).save(any(BudgetPeriodInstance.class));
     }
 
     @Test
@@ -143,7 +145,8 @@ class BudgetTrackingServiceTests {
                 9L,
                 categoryId,
                 BigDecimal.valueOf(30),
-                Instant.now().atOffset(ZoneOffset.UTC).toInstant()
+                ExpenseStatus.PAID,
+                LocalDate.now()
         );
 
         when(budgetRepository.findActiveByTenantIdAndCategoryId(tenantId, categoryId)).thenReturn(List.of(budget));
@@ -160,6 +163,25 @@ class BudgetTrackingServiceTests {
         assertFalse(periodInstance.isWarningSent());
         assertFalse(periodInstance.isExceededSent());
     }
+
+    @Test
+    @DisplayName("applyExpenseCreated ignores non-paid expenses")
+    void applyExpenseCreated_ignoresNonPaid() {
+        ExpenseBudgetSnapshot snapshot = new ExpenseBudgetSnapshot(
+                100L,
+                1L,
+                9L,
+                5L,
+                BigDecimal.valueOf(30),
+                ExpenseStatus.PENDING,
+                LocalDate.now()
+        );
+
+        budgetTrackingService.applyExpenseCreated(snapshot);
+
+        verify(budgetRepository, never()).findActiveByTenantIdAndCategoryId(any(), any());
+    }
+
 
     private Budget buildBudget(Long budgetId, Long tenantId, Long categoryId) {
         Category category = new Category();

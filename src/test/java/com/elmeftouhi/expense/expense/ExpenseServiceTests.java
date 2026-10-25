@@ -464,8 +464,8 @@ class ExpenseServiceTests {
         third.setDueDate(LocalDate.of(2026, 10, 3));
         third.setAmount(BigDecimal.valueOf(2));
 
-        when(expenseRepository.findByTenantIdAndDueDateBetweenAndDeletedFalse(
-                tenantId, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31)))
+        when(expenseRepository.findByTenantIdAndStatusAndDueDateBetweenAndDeletedFalse(
+                tenantId, ExpenseStatus.PAID, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31)))
                 .thenReturn(List.of(first, second, third));
 
         ExpenseDailyChartResponse response = expenseService.getDailyTotalsForMonth(2026, 10);
@@ -492,11 +492,11 @@ class ExpenseServiceTests {
         februaryPrevious.setDueDate(LocalDate.of(2025, 2, 20));
         februaryPrevious.setAmount(BigDecimal.valueOf(30));
 
-        when(expenseRepository.findByTenantIdAndDueDateBetweenAndDeletedFalse(
-                tenantId, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)))
+        when(expenseRepository.findByTenantIdAndStatusAndDueDateBetweenAndDeletedFalse(
+                tenantId, ExpenseStatus.PAID, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)))
                 .thenReturn(List.of(januaryCurrent, marchCurrent));
-        when(expenseRepository.findByTenantIdAndDueDateBetweenAndDeletedFalse(
-                tenantId, LocalDate.of(2025, 1, 1), LocalDate.of(2025, 12, 31)))
+        when(expenseRepository.findByTenantIdAndStatusAndDueDateBetweenAndDeletedFalse(
+                tenantId, ExpenseStatus.PAID, LocalDate.of(2025, 1, 1), LocalDate.of(2025, 12, 31)))
                 .thenReturn(List.of(februaryPrevious));
 
         ExpenseMonthlyChartResponse response = expenseService.getMonthlyTotalsForYear(2026);
@@ -520,7 +520,8 @@ class ExpenseServiceTests {
         LocalDate expectedStart = today.withDayOfMonth(1);
         LocalDate expectedEnd = today.withDayOfMonth(today.lengthOfMonth());
 
-        when(expenseRepository.findByTenantIdAndDueDateBetweenAndDeletedFalse(tenantId, expectedStart, expectedEnd))
+        when(expenseRepository.findByTenantIdAndStatusAndDueDateBetweenAndDeletedFalse(
+                tenantId, ExpenseStatus.PAID, expectedStart, expectedEnd))
                 .thenReturn(List.of());
 
         ExpenseDailyChartResponse response = expenseService.getDailyTotalsForMonth(null, null);
@@ -535,11 +536,11 @@ class ExpenseServiceTests {
     void testGetMonthlyTotalsForYearDefaultsToCurrentWhenMissing() {
         int currentYear = LocalDate.now().getYear();
 
-        when(expenseRepository.findByTenantIdAndDueDateBetweenAndDeletedFalse(
-                tenantId, LocalDate.of(currentYear, 1, 1), LocalDate.of(currentYear, 12, 31)))
+        when(expenseRepository.findByTenantIdAndStatusAndDueDateBetweenAndDeletedFalse(
+                tenantId, ExpenseStatus.PAID, LocalDate.of(currentYear, 1, 1), LocalDate.of(currentYear, 12, 31)))
                 .thenReturn(List.of());
-        when(expenseRepository.findByTenantIdAndDueDateBetweenAndDeletedFalse(
-                tenantId, LocalDate.of(currentYear - 1, 1, 1), LocalDate.of(currentYear - 1, 12, 31)))
+        when(expenseRepository.findByTenantIdAndStatusAndDueDateBetweenAndDeletedFalse(
+                tenantId, ExpenseStatus.PAID, LocalDate.of(currentYear - 1, 1, 1), LocalDate.of(currentYear - 1, 12, 31)))
                 .thenReturn(List.of());
 
         ExpenseMonthlyChartResponse response = expenseService.getMonthlyTotalsForYear(null);

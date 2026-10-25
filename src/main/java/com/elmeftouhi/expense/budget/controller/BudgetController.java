@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -50,6 +51,13 @@ public class BudgetController {
     @GetMapping("/{id}/periods")
     public List<BudgetPeriodResponse> getPeriods(@PathVariable Long id) {
         return budgetService.getPeriods(id);
+    }
+
+    @GetMapping("/{id}/history")
+    public List<BudgetPeriodResponse> getHistory(
+            @PathVariable Long id,
+            @RequestParam(required = false) Integer monthsBack) {
+        return budgetService.getHistory(id, monthsBack);
     }
 
     @PatchMapping("/{id}/periods/{periodId}")

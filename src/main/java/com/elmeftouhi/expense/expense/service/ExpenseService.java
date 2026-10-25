@@ -327,7 +327,11 @@ public class ExpenseService {
         LocalDate startDate = yearMonth.atDay(1);
         LocalDate endDate = yearMonth.atEndOfMonth();
 
-        List<Expense> expenses = expenseRepository.findByTenantIdAndDueDateBetweenAndDeletedFalse(tenantId, startDate, endDate);
+        List<Expense> expenses = expenseRepository.findByTenantIdAndStatusAndDueDateBetweenAndDeletedFalse(
+                tenantId,
+                ExpenseStatus.PAID,
+                startDate,
+                endDate);
         Map<Integer, BigDecimal> totalsByDay = aggregateTotalsByPeriod(expenses, true);
 
         List<ExpenseDailyChartResponse.DayTotal> totals = new ArrayList<>();
@@ -352,7 +356,11 @@ public class ExpenseService {
     private List<ExpenseMonthlyChartResponse.MonthTotal> buildMonthlyTotalsForYear(Long tenantId, int year) {
         LocalDate startDate = LocalDate.of(year, 1, 1);
         LocalDate endDate = LocalDate.of(year, 12, 31);
-        List<Expense> expenses = expenseRepository.findByTenantIdAndDueDateBetweenAndDeletedFalse(tenantId, startDate, endDate);
+        List<Expense> expenses = expenseRepository.findByTenantIdAndStatusAndDueDateBetweenAndDeletedFalse(
+                tenantId,
+                ExpenseStatus.PAID,
+                startDate,
+                endDate);
         Map<Integer, BigDecimal> totalsByMonth = aggregateTotalsByPeriod(expenses, false);
 
         List<ExpenseMonthlyChartResponse.MonthTotal> totals = new ArrayList<>();

@@ -8,17 +8,20 @@ import com.elmeftouhi.expense.budget.entity.Budget;
 import com.elmeftouhi.expense.budget.entity.BudgetPeriodInstance;
 import com.elmeftouhi.expense.budget.repository.BudgetRepository;
 import com.elmeftouhi.expense.budget.repository.BudgetPeriodInstanceRepository;
+import com.elmeftouhi.expense.category.entity.Category;
+import com.elmeftouhi.expense.expense.ExpenseStatus;
+import com.elmeftouhi.expense.expense.repository.ExpenseRepository;
 import com.elmeftouhi.expense.notification.service.NotificationService;
 import com.elmeftouhi.expense.notification.NotificationType;
-import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.util.LinkedHashSet;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +32,7 @@ public class BudgetTrackingService {
 
     private final BudgetRepository budgetRepository;
     private final BudgetPeriodInstanceRepository budgetPeriodInstanceRepository;
+    private final ExpenseRepository expenseRepository;
     private final NotificationService notificationService;
 
     @Transactional
@@ -48,7 +52,11 @@ public class BudgetTrackingService {
     }
 
     private void applySnapshot(ExpenseBudgetSnapshot snapshot, boolean increase, boolean allowCreatePeriodInstance) {
-        if (snapshot == null || snapshot.categoryId() == null || snapshot.amount() == null || snapshot.amount().signum() <= 0) {
+        if (snapshot == null
+                || snapshot.categoryId() == null
+                || snapshot.amount() == null
+                || snapshot.amount().signum() <= 0
+                || snapshot.status() != ExpenseStatus.PAID) {
             return;
         }
 
@@ -57,28 +65,79 @@ public class BudgetTrackingService {
             return;
         }
 
-        LocalDate referenceDate = resolveReferenceDate(snapshot.createdAt());
+        LocalDate referenceDate = resolveReferenceDate(snapshot.dueDate());
         BigDecimal delta = increase ? snapshot.amount() : snapshot.amount().negate();
 
         for (Budget budget : budgets) {
-            BudgetPeriodInstance periodInstance = resolvePeriodInstance(
+            Optional<BudgetPeriodInstance> periodInstance = resolvePeriodInstance(
                     budget,
                     snapshot.tenantId(),
                     referenceDate,
                     allowCreatePeriodInstance
             );
-            applyDelta(periodInstance, delta);
-            triggerNotificationsIfNeeded(periodInstance, snapshot.userId(), snapshot.expenseId(), budget.getName(), delta.signum() > 0);
-            budgetPeriodInstanceRepository.save(periodInstance);
+            if (periodInstance.isEmpty()) {
+                continue;
+            }
+
+            applyDelta(periodInstance.get(), delta);
+            triggerNotificationsIfNeeded(periodInstance.get(), snapshot.userId(), snapshot.expenseId(), budget.getName(), delta.signum() > 0);
+            budgetPeriodInstanceRepository.save(periodInstance.get());
         }
     }
 
-    private LocalDate resolveReferenceDate(Instant createdAt) {
-        Instant source = createdAt != null ? createdAt : Instant.now();
-        return source.atZone(ZoneOffset.UTC).toLocalDate();
+    public List<BudgetPeriodInstance> ensureHistory(Budget budget, Long tenantId, int monthsBack) {
+        if (monthsBack < 1) {
+            monthsBack = 1;
+        }
+
+        LocalDate today = LocalDate.now();
+        Set<LocalDate> includedStartDates = new LinkedHashSet<>();
+        List<BudgetPeriodInstance> history = new java.util.ArrayList<>();
+
+        for (int i = 0; i < monthsBack; i++) {
+            LocalDate referenceDate = today.minusMonths(i);
+            BudgetPeriodInstance period = recalculateForReferenceDate(budget, tenantId, referenceDate, true);
+            if (includedStartDates.add(period.getStartDate())) {
+                history.add(period);
+            }
+        }
+
+        history.sort((left, right) -> right.getStartDate().compareTo(left.getStartDate()));
+        return history;
     }
 
-    private BudgetPeriodInstance resolvePeriodInstance(
+    public BudgetPeriodInstance recalculateForReferenceDate(Budget budget, Long tenantId, LocalDate referenceDate, boolean allowCreatePeriodInstance) {
+        BudgetPeriodInstance periodInstance = resolvePeriodInstance(budget, tenantId, referenceDate, allowCreatePeriodInstance)
+                .orElseThrow(() -> new IllegalStateException("Budget period instance not found for recalculation"));
+
+        BigDecimal spentAmount = expenseRepository.sumByTenantStatusCategoriesAndDueDateRange(
+                tenantId,
+                ExpenseStatus.PAID,
+                budget.getCategories().stream().map(Category::getId).toList(),
+                periodInstance.getStartDate(),
+                periodInstance.getEndDate());
+
+        periodInstance.setSpentAmount(valueOrZero(spentAmount));
+        periodInstance.setStatus(periodInstance.getSpentAmount().compareTo(valueOrZero(periodInstance.getAllocatedAmount())) >= 0
+                ? BudgetPeriodStatus.CLOSED
+                : BudgetPeriodStatus.OPEN);
+
+        if (periodInstance.getSpentAmount().compareTo(resolveWarningAmount(periodInstance)) < 0) {
+            periodInstance.setWarningSent(false);
+        }
+        if (periodInstance.getSpentAmount().compareTo(valueOrZero(periodInstance.getAllocatedAmount())) <= 0) {
+            periodInstance.setExceededSent(false);
+        }
+        periodInstance.setUpdatedAt(Instant.now());
+
+        return budgetPeriodInstanceRepository.save(periodInstance);
+    }
+
+    private LocalDate resolveReferenceDate(LocalDate dueDate) {
+        return dueDate != null ? dueDate : LocalDate.now();
+    }
+
+    private Optional<BudgetPeriodInstance> resolvePeriodInstance(
             Budget budget,
             Long tenantId,
             LocalDate referenceDate,
@@ -92,16 +151,14 @@ public class BudgetTrackingService {
         );
 
         if (existing.isPresent()) {
-            return existing.get();
+            return existing;
         }
 
         if (!allowCreatePeriodInstance) {
-            throw new BadRequestException(
-                    "No budget period instance exists for budget '" + budget.getName() + "' and date " + referenceDate
-            );
+            return Optional.empty();
         }
 
-        return createPeriodInstance(budget, tenantId, dateRange);
+        return Optional.of(createPeriodInstance(budget, tenantId, dateRange));
     }
 
     private BudgetPeriodInstance createPeriodInstance(Budget budget, Long tenantId, DateRange dateRange) {

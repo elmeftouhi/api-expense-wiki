@@ -36,6 +36,7 @@ public class BudgetService {
 
     private final BudgetRepository budgetRepository;
     private final BudgetPeriodInstanceRepository budgetPeriodInstanceRepository;
+    private final BudgetTrackingService budgetTrackingService;
     private final CategoryRepository categoryRepository;
     private final ActivityLogService activityLogService;
 
@@ -67,6 +68,7 @@ public class BudgetService {
 
         Budget saved = budgetRepository.save(budget);
         createInitialPeriodInstance(saved, tenantId);
+        budgetTrackingService.recalculateForReferenceDate(saved, tenantId, LocalDate.now(), true);
 
         BudgetResponse response = toResponse(saved, resolveCurrentPeriod(saved.getId(), tenantId, LocalDate.now()));
         logActivity(ActivityAction.CREATE, response, "Budget created");
@@ -83,6 +85,7 @@ public class BudgetService {
         budget.setUpdatedAt(Instant.now());
 
         Budget saved = budgetRepository.save(budget);
+        budgetTrackingService.recalculateForReferenceDate(saved, tenantId, LocalDate.now(), true);
         BudgetResponse response = toResponse(saved, resolveCurrentPeriod(saved.getId(), tenantId, LocalDate.now()));
         logActivity(ActivityAction.UPDATE, response, "Budget updated");
         return response;
@@ -93,6 +96,21 @@ public class BudgetService {
         Long tenantId = TenantContext.getRequiredTenantId();
         loadBudget(budgetId, tenantId);
         return budgetPeriodInstanceRepository.findByBudgetIdAndTenantIdOrderByStartDateDesc(budgetId, tenantId)
+                .stream()
+                .map(this::toPeriodResponse)
+                .toList();
+    }
+
+    @Transactional
+    public List<BudgetPeriodResponse> getHistory(Long budgetId, Integer monthsBack) {
+        Long tenantId = TenantContext.getRequiredTenantId();
+        Budget budget = loadBudget(budgetId, tenantId);
+        int effectiveMonthsBack = monthsBack == null ? 12 : monthsBack;
+        if (effectiveMonthsBack < 1 || effectiveMonthsBack > 60) {
+            throw new BadRequestException("monthsBack must be between 1 and 60");
+        }
+
+        return budgetTrackingService.ensureHistory(budget, tenantId, effectiveMonthsBack)
                 .stream()
                 .map(this::toPeriodResponse)
                 .toList();

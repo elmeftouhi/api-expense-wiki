@@ -1,8 +1,9 @@
 package com.elmeftouhi.expense.budget.entity;
 
 import com.elmeftouhi.expense.expense.entity.Expense;
+import com.elmeftouhi.expense.expense.ExpenseStatus;
 import java.math.BigDecimal;
-import java.time.Instant;
+import java.time.LocalDate;
 
 public record ExpenseBudgetSnapshot(
         Long expenseId,
@@ -10,7 +11,8 @@ public record ExpenseBudgetSnapshot(
         Long userId,
         Long categoryId,
         BigDecimal amount,
-        Instant createdAt
+        ExpenseStatus status,
+        LocalDate dueDate
 ) {
     public static ExpenseBudgetSnapshot fromExpense(Expense expense) {
         return new ExpenseBudgetSnapshot(
@@ -19,7 +21,8 @@ public record ExpenseBudgetSnapshot(
                 expense.getUserId(),
                 expense.getCategory().getId(),
                 expense.getAmount(),
-                expense.getCreatedAt()
+                expense.getStatus(),
+                expense.getDueDate()
         );
     }
 }

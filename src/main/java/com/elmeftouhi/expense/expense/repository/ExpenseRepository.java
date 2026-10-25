@@ -99,6 +99,22 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
 
+    @Query("""
+            SELECT COALESCE(SUM(e.amount), 0)
+            FROM Expense e
+            WHERE e.tenantId = :tenantId
+                AND e.deleted = false
+                AND e.status = :status
+                AND e.category.id IN :categoryIds
+                AND e.dueDate BETWEEN :startDate AND :endDate
+            """)
+    java.math.BigDecimal sumByTenantStatusCategoriesAndDueDateRange(
+            @Param("tenantId") Long tenantId,
+            @Param("status") ExpenseStatus status,
+            @Param("categoryIds") java.util.Collection<Long> categoryIds,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
     boolean existsByIdAndTenantIdAndDeletedFalse(Long id, Long tenantId);
 }
 
