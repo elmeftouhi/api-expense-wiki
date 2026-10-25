@@ -60,14 +60,14 @@ public class ExpenseController {
             @Parameter(description = "Filter by expense type")
             @RequestParam(required = false) ExpenseType type,
             @Parameter(description = "Filter by payment status (paid or pending)")
-            @RequestParam(required = false) String paymentStatus,
+            @RequestParam(required = false) ExpenseStatus status,
             @PageableDefault(size = 20, sort = "dueDate", direction = Sort.Direction.DESC) Pageable pageable) {
         Page<ExpenseResponse> pageResult = expenseService.findAll(
                 year,
                 month,
                 categoryId,
                 type,
-                parsePaymentStatus(paymentStatus),
+                status,
                 pageable);
         return new ExpensePageResponse(
                 pageResult.getContent(),
@@ -194,18 +194,6 @@ public class ExpenseController {
             @RequestParam(required = false) Integer year) {
         Integer effectiveYear = year != null ? year : LocalDate.now().getYear();
         return expenseService.getMonthlyTotalsForYear(effectiveYear);
-    }
-
-    private ExpenseStatus parsePaymentStatus(String paymentStatus) {
-        if (paymentStatus == null || paymentStatus.isBlank()) {
-            return null;
-        }
-
-        try {
-            return ExpenseStatus.valueOf(paymentStatus.trim().toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException ex) {
-            throw new BadRequestException("paymentStatus must be paid or pending");
-        }
     }
 
 }
