@@ -18,6 +18,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Locale;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -48,26 +49,39 @@ public class ExpenseController {
     private final ExpenseService expenseService;
 
     @GetMapping
-    @Operation(summary = "List expenses", description = "Returns paginated expenses with optional filtering by year, month, category, and type")
+    @Operation(summary = "List expenses", description = "Returns paginated expenses with optional filtering by year, month, category, type, and search text")
     @ApiResponse(responseCode = "200", description = "Expenses returned successfully")
     public ExpensePageResponse findAll(
             @Parameter(description = "Filter by year", example = "2026")
             @RequestParam(required = false) Integer year,
             @Parameter(description = "Filter by month (1-12)", example = "10")
             @RequestParam(required = false) Integer month,
-            @Parameter(description = "Filter by category ID", example = "5")
+            @Parameter(description = "Filter by category ID (legacy single-value filter)", example = "5")
             @RequestParam(required = false) Long categoryId,
+            @Parameter(description = "Filter by category IDs", example = "5,8")
+            @RequestParam(required = false) List<Long> categoryIds,
             @Parameter(description = "Filter by expense type")
             @RequestParam(required = false) ExpenseType type,
             @Parameter(description = "Filter by payment status (paid or pending)")
             @RequestParam(required = false) ExpenseStatus status,
+            @Parameter(description = "Search text applied to description and amount", example = "45")
+            @RequestParam(required = false) String search,
             @PageableDefault(size = 20, sort = "dueDate", direction = Sort.Direction.DESC) Pageable pageable) {
+        List<Long> effectiveCategoryIds = new ArrayList<>();
+        if (categoryIds != null) {
+            effectiveCategoryIds.addAll(categoryIds);
+        }
+        if (categoryId != null) {
+            effectiveCategoryIds.add(categoryId);
+        }
+
         Page<ExpenseResponse> pageResult = expenseService.findAll(
                 year,
                 month,
-                categoryId,
+                effectiveCategoryIds.isEmpty() ? null : effectiveCategoryIds.stream().distinct().toList(),
                 type,
                 status,
+                search,
                 pageable);
         return new ExpensePageResponse(
                 pageResult.getContent(),

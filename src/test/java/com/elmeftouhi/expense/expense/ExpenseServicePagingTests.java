@@ -90,18 +90,19 @@ class ExpenseServicePagingTests {
         LocalDate start = LocalDate.of(currentYear, 1, 1);
         LocalDate end = LocalDate.of(currentYear, 12, 31);
 
-        when(expenseRepository.findPageByTenantAndFilters(eq(tenantId), eq(start), eq(end), isNull(), isNull(), isNull(), eq(pageable)))
+        when(expenseRepository.findPageByTenantAndFilters(eq(tenantId), eq(start), eq(end), isNull(), isNull(), isNull(), eq(false), eq(""), eq(pageable)))
                 .thenReturn(page);
 
-        Page<ExpenseResponse> result = expenseService.findAll(null, null, null, null, null, pageable);
+        Page<ExpenseResponse> result = expenseService.findAll(null, null, null, null, null, null, pageable);
 
         assertEquals(1, result.getTotalElements());
-        verify(expenseRepository).findPageByTenantAndFilters(eq(tenantId), eq(start), eq(end), isNull(), isNull(), isNull(), eq(pageable));
+        verify(expenseRepository).findPageByTenantAndFilters(eq(tenantId), eq(start), eq(end), isNull(), isNull(), isNull(), eq(false), eq(""), eq(pageable));
     }
 
     @Test
     void findAll_filtersByYearMonthAndCategory() {
         Long categoryId = 5L;
+        List<Long> categoryIds = List.of(categoryId);
         int year = 2026;
         int month = 9;
 
@@ -127,13 +128,91 @@ class ExpenseServicePagingTests {
         LocalDate end = yearMonth.atEndOfMonth();
 
         when(categoryRepository.findByIdAndTenantId(categoryId, tenantId)).thenReturn(java.util.Optional.of(category));
-        when(expenseRepository.findPageByTenantAndFilters(tenantId, start, end, categoryId, null, null, pageable)).thenReturn(page);
+        when(expenseRepository.findPageByTenantAndFilters(tenantId, start, end, categoryIds, null, null, false, "", pageable)).thenReturn(page);
 
-        Page<ExpenseResponse> result = expenseService.findAll(year, month, categoryId, null, null, pageable);
+        Page<ExpenseResponse> result = expenseService.findAll(year, month, categoryIds, null, null, null, pageable);
 
         assertEquals(1, result.getTotalElements());
         verify(categoryRepository).findByIdAndTenantId(categoryId, tenantId);
-        verify(expenseRepository).findPageByTenantAndFilters(tenantId, start, end, categoryId, null, null, pageable);
+        verify(expenseRepository).findPageByTenantAndFilters(tenantId, start, end, categoryIds, null, null, false, "", pageable);
+    }
+
+    @Test
+    void findAll_filtersByMultipleCategories() {
+        List<Long> categoryIds = List.of(5L, 6L);
+        int year = 2026;
+        int month = 9;
+
+        Category firstCategory = new Category();
+        firstCategory.setId(5L);
+        firstCategory.setName("Utilities");
+
+        Category secondCategory = new Category();
+        secondCategory.setId(6L);
+        secondCategory.setName("Housing");
+
+        Expense expense = new Expense();
+        expense.setId(21L);
+        expense.setCategory(firstCategory);
+        expense.setDescription("Internet");
+        expense.setAmount(BigDecimal.valueOf(45));
+        expense.setCurrency("USD");
+        expense.setType(ExpenseType.NORMAL);
+        expense.setStatus(ExpenseStatus.PENDING);
+        expense.setDueDate(LocalDate.of(2026, 9, 15));
+
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Expense> page = new PageImpl<>(List.of(expense), pageable, 1);
+
+        YearMonth yearMonth = YearMonth.of(year, month);
+        LocalDate start = yearMonth.atDay(1);
+        LocalDate end = yearMonth.atEndOfMonth();
+
+        when(categoryRepository.findByIdAndTenantId(5L, tenantId)).thenReturn(java.util.Optional.of(firstCategory));
+        when(categoryRepository.findByIdAndTenantId(6L, tenantId)).thenReturn(java.util.Optional.of(secondCategory));
+        when(expenseRepository.findPageByTenantAndFilters(tenantId, start, end, categoryIds, null, null, false, "", pageable)).thenReturn(page);
+
+        Page<ExpenseResponse> result = expenseService.findAll(year, month, categoryIds, null, null, null, pageable);
+
+        assertEquals(1, result.getTotalElements());
+        verify(categoryRepository).findByIdAndTenantId(5L, tenantId);
+        verify(categoryRepository).findByIdAndTenantId(6L, tenantId);
+        verify(expenseRepository).findPageByTenantAndFilters(tenantId, start, end, categoryIds, null, null, false, "", pageable);
+
+    }
+
+    @Test
+    void findAll_filtersBySearchText() {
+        String search = "45";
+
+        Expense expense = new Expense();
+        expense.setId(30L);
+        expense.setDescription("Internet");
+        expense.setAmount(BigDecimal.valueOf(45));
+        expense.setCurrency("USD");
+        expense.setType(ExpenseType.NORMAL);
+        expense.setStatus(ExpenseStatus.PENDING);
+        expense.setDueDate(LocalDate.of(2026, 9, 20));
+
+        Category category = new Category();
+        category.setId(8L);
+        category.setName("Utilities");
+        expense.setCategory(category);
+
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Expense> page = new PageImpl<>(List.of(expense), pageable, 1);
+
+        int currentYear = LocalDate.now().getYear();
+        LocalDate start = LocalDate.of(currentYear, 1, 1);
+        LocalDate end = LocalDate.of(currentYear, 12, 31);
+
+        when(expenseRepository.findPageByTenantAndFilters(eq(tenantId), eq(start), eq(end), isNull(), isNull(), isNull(), eq(true), eq("%45%"), eq(pageable)))
+                .thenReturn(page);
+
+        Page<ExpenseResponse> result = expenseService.findAll(null, null, null, null, null, search, pageable);
+
+        assertEquals(1, result.getTotalElements());
+        verify(expenseRepository).findPageByTenantAndFilters(eq(tenantId), eq(start), eq(end), isNull(), isNull(), isNull(), eq(true), eq("%45%"), eq(pageable));
     }
 
     @Test
@@ -159,13 +238,13 @@ class ExpenseServicePagingTests {
         LocalDate start = LocalDate.of(currentYear, 1, 1);
         LocalDate end = LocalDate.of(currentYear, 12, 31);
 
-        when(expenseRepository.findPageByTenantAndFilters(eq(tenantId), eq(start), eq(end), isNull(), eq(ExpenseType.SUBSCRIPTION), isNull(), eq(pageable)))
+        when(expenseRepository.findPageByTenantAndFilters(eq(tenantId), eq(start), eq(end), isNull(), eq(ExpenseType.SUBSCRIPTION), isNull(), eq(false), eq(""), eq(pageable)))
                 .thenReturn(page);
 
-        Page<ExpenseResponse> result = expenseService.findAll(null, null, null, ExpenseType.SUBSCRIPTION, null, pageable);
+        Page<ExpenseResponse> result = expenseService.findAll(null, null, null, ExpenseType.SUBSCRIPTION, null, null, pageable);
 
         assertEquals(1, result.getTotalElements());
-        verify(expenseRepository).findPageByTenantAndFilters(eq(tenantId), eq(start), eq(end), isNull(), eq(ExpenseType.SUBSCRIPTION), isNull(), eq(pageable));
+        verify(expenseRepository).findPageByTenantAndFilters(eq(tenantId), eq(start), eq(end), isNull(), eq(ExpenseType.SUBSCRIPTION), isNull(), eq(false), eq(""), eq(pageable));
     }
 
     @Test
@@ -191,31 +270,31 @@ class ExpenseServicePagingTests {
         LocalDate start = LocalDate.of(currentYear, 1, 1);
         LocalDate end = LocalDate.of(currentYear, 12, 31);
 
-        when(expenseRepository.findPageByTenantAndFilters(eq(tenantId), eq(start), eq(end), isNull(), isNull(), eq(ExpenseStatus.PAID), eq(pageable)))
+        when(expenseRepository.findPageByTenantAndFilters(eq(tenantId), eq(start), eq(end), isNull(), isNull(), eq(ExpenseStatus.PAID), eq(false), eq(""), eq(pageable)))
                 .thenReturn(page);
 
-        Page<ExpenseResponse> result = expenseService.findAll(null, null, null, null, ExpenseStatus.PAID, pageable);
+        Page<ExpenseResponse> result = expenseService.findAll(null, null, null, null, ExpenseStatus.PAID, null, pageable);
 
         assertEquals(1, result.getTotalElements());
-        verify(expenseRepository).findPageByTenantAndFilters(eq(tenantId), eq(start), eq(end), isNull(), isNull(), eq(ExpenseStatus.PAID), eq(pageable));
+        verify(expenseRepository).findPageByTenantAndFilters(eq(tenantId), eq(start), eq(end), isNull(), isNull(), eq(ExpenseStatus.PAID), eq(false), eq(""), eq(pageable));
     }
 
     @Test
     void findAll_rejectsInvalidMonth() {
         Pageable pageable = PageRequest.of(0, 20);
-        assertThrows(BadRequestException.class, () -> expenseService.findAll(2026, 13, null, null, null, pageable));
+        assertThrows(BadRequestException.class, () -> expenseService.findAll(2026, 13, null, null, null, null, pageable));
     }
 
     @Test
     void findAll_rejectsMonthWithoutYear() {
         Pageable pageable = PageRequest.of(0, 20);
-        assertThrows(BadRequestException.class, () -> expenseService.findAll(null, 9, null, null, null, pageable));
+        assertThrows(BadRequestException.class, () -> expenseService.findAll(null, 9, null, null, null, null, pageable));
     }
 
     @Test
     void findAll_rejectsUnsupportedPaymentStatus() {
         Pageable pageable = PageRequest.of(0, 20);
-        assertThrows(BadRequestException.class, () -> expenseService.findAll(2026, null, null, null, ExpenseStatus.OVERDUE, pageable));
+        assertThrows(BadRequestException.class, () -> expenseService.findAll(2026, null, null, null, ExpenseStatus.OVERDUE, null, pageable));
     }
 }
 

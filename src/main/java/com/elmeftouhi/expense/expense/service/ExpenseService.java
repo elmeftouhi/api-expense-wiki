@@ -31,6 +31,7 @@ import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -54,9 +55,10 @@ public class ExpenseService {
     public Page<ExpenseResponse> findAll(
             Integer year,
             Integer month,
-            Long categoryId,
+            List<Long> categoryIds,
             ExpenseType type,
             ExpenseStatus paymentStatus,
+            String search,
             Pageable pageable) {
         Long tenantId = TenantContext.getRequiredTenantId();
 
@@ -70,10 +72,20 @@ public class ExpenseService {
             throw new BadRequestException("paymentStatus must be PAID or PENDING");
         }
 
-        if (categoryId != null) {
-            categoryRepository.findByIdAndTenantId(categoryId, tenantId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+        List<Long> effectiveCategoryIds = null;
+        if (categoryIds != null && !categoryIds.isEmpty()) {
+            effectiveCategoryIds = categoryIds.stream().distinct().toList();
+            for (Long categoryId : effectiveCategoryIds) {
+                categoryRepository.findByIdAndTenantId(categoryId, tenantId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+            }
         }
+
+        String normalizedSearch = (search != null && !search.isBlank())
+                ? search.trim().toLowerCase(Locale.ROOT)
+                : null;
+        boolean applySearchFilter = normalizedSearch != null;
+        String searchPattern = applySearchFilter ? "%" + normalizedSearch + "%" : "";
 
         LocalDate startDate;
         LocalDate endDate;
@@ -95,9 +107,11 @@ public class ExpenseService {
                         tenantId,
                         startDate,
                         endDate,
-                        categoryId,
+                        effectiveCategoryIds,
                         type,
                         paymentStatus,
+                        applySearchFilter,
+                        searchPattern,
                         pageable)
                 .map(this::toResponse);
     }

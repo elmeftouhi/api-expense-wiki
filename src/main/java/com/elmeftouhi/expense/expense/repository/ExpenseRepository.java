@@ -4,6 +4,7 @@ import com.elmeftouhi.expense.expense.entity.Expense;
 import com.elmeftouhi.expense.expense.ExpenseStatus;
 import com.elmeftouhi.expense.expense.ExpenseType;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -41,17 +42,22 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             WHERE e.tenantId = :tenantId
                 AND e.deleted = false
                 AND e.dueDate BETWEEN :startDate AND :endDate
-                AND (:categoryId IS NULL OR e.category.id = :categoryId)
+                AND (:categoryIds IS NULL OR e.category.id IN :categoryIds)
                 AND (:type IS NULL OR e.type = :type)
                 AND (:status IS NULL OR e.status = :status)
+                AND (:applySearchFilter = false
+                    OR LOWER(COALESCE(e.description, '')) LIKE :searchPattern
+                    OR CAST(e.amount AS string) LIKE :searchPattern)
             """)
     Page<Expense> findPageByTenantAndFilters(
             @Param("tenantId") Long tenantId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate,
-            @Param("categoryId") Long categoryId,
+            @Param("categoryIds") Collection<Long> categoryIds,
             @Param("type") ExpenseType type,
             @Param("status") ExpenseStatus status,
+            @Param("applySearchFilter") boolean applySearchFilter,
+            @Param("searchPattern") String searchPattern,
             Pageable pageable);
 
     @Query("""
@@ -114,6 +120,84 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             @Param("categoryIds") java.util.Collection<Long> categoryIds,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
+
+    @Query("""
+            SELECT COALESCE(SUM(e.amount), 0)
+            FROM Expense e
+            WHERE e.tenantId = :tenantId
+                AND e.deleted = false
+                AND e.status IN :statuses
+                AND e.dueDate BETWEEN :startDate AND :endDate
+            """)
+    java.math.BigDecimal sumByTenantAndStatusesAndDueDateRange(
+            @Param("tenantId") Long tenantId,
+            @Param("statuses") Collection<ExpenseStatus> statuses,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    @Query("""
+            SELECT COALESCE(SUM(e.amount), 0)
+            FROM Expense e
+            WHERE e.tenantId = :tenantId
+                AND e.deleted = false
+                AND e.status IN :statuses
+                AND e.dueDate < :date
+            """)
+    java.math.BigDecimal sumByTenantAndStatusesAndDueDateBefore(
+            @Param("tenantId") Long tenantId,
+            @Param("statuses") Collection<ExpenseStatus> statuses,
+            @Param("date") LocalDate date);
+
+    @Query("""
+            SELECT COUNT(e)
+            FROM Expense e
+            WHERE e.tenantId = :tenantId
+                AND e.deleted = false
+                AND e.status IN :statuses
+                AND e.dueDate < :date
+            """)
+    long countByTenantAndStatusesAndDueDateBefore(
+            @Param("tenantId") Long tenantId,
+            @Param("statuses") Collection<ExpenseStatus> statuses,
+            @Param("date") LocalDate date);
+
+    @Query("""
+            SELECT COALESCE(SUM(e.amount), 0)
+            FROM Expense e
+            WHERE e.tenantId = :tenantId
+                AND e.deleted = false
+                AND e.status = :status
+                AND e.dueDate >= :date
+            """)
+    java.math.BigDecimal sumByTenantAndStatusAndDueDateOnOrAfter(
+            @Param("tenantId") Long tenantId,
+            @Param("status") ExpenseStatus status,
+            @Param("date") LocalDate date);
+
+    @Query("""
+            SELECT COUNT(e)
+            FROM Expense e
+            WHERE e.tenantId = :tenantId
+                AND e.deleted = false
+                AND e.status = :status
+                AND e.dueDate >= :date
+            """)
+    long countByTenantAndStatusAndDueDateOnOrAfter(
+            @Param("tenantId") Long tenantId,
+            @Param("status") ExpenseStatus status,
+            @Param("date") LocalDate date);
+
+    long countByTenantIdAndStatusAndDueDateBetweenAndDeletedFalse(
+            Long tenantId,
+            ExpenseStatus status,
+            LocalDate startDate,
+            LocalDate endDate);
+
+    Optional<Expense> findFirstByTenantIdAndStatusAndDueDateBetweenAndDeletedFalseOrderByDueDateAsc(
+            Long tenantId,
+            ExpenseStatus status,
+            LocalDate startDate,
+            LocalDate endDate);
 
     boolean existsByIdAndTenantIdAndDeletedFalse(Long id, Long tenantId);
 }
