@@ -61,6 +61,29 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             Pageable pageable);
 
     @Query("""
+            SELECT COALESCE(SUM(e.amount), 0)
+            FROM Expense e
+            WHERE e.tenantId = :tenantId
+                AND e.deleted = false
+                AND e.dueDate BETWEEN :startDate AND :endDate
+                AND (:categoryIds IS NULL OR e.category.id IN :categoryIds)
+                AND (:type IS NULL OR e.type = :type)
+                AND (:status IS NULL OR e.status = :status)
+                AND (:applySearchFilter = false
+                    OR LOWER(COALESCE(e.description, '')) LIKE :searchPattern
+                    OR CAST(e.amount AS string) LIKE :searchPattern)
+            """)
+    java.math.BigDecimal sumByTenantAndFilters(
+            @Param("tenantId") Long tenantId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("categoryIds") Collection<Long> categoryIds,
+            @Param("type") ExpenseType type,
+            @Param("status") ExpenseStatus status,
+            @Param("applySearchFilter") boolean applySearchFilter,
+            @Param("searchPattern") String searchPattern);
+
+    @Query("""
             SELECT e FROM Expense e
             WHERE e.tenantId = :tenantId
                 AND e.deleted = false

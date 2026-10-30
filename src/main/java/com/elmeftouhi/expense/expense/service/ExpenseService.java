@@ -60,6 +60,18 @@ public class ExpenseService {
             ExpenseStatus paymentStatus,
             String search,
             Pageable pageable) {
+        return findAllWithAggregates(year, month, categoryIds, type, paymentStatus, search, pageable).page();
+    }
+
+    @Transactional(readOnly = true)
+    public ExpensePageSearchResult findAllWithAggregates(
+            Integer year,
+            Integer month,
+            List<Long> categoryIds,
+            ExpenseType type,
+            ExpenseStatus paymentStatus,
+            String search,
+            Pageable pageable) {
         Long tenantId = TenantContext.getRequiredTenantId();
 
         if (month != null && (month < 1 || month > 12)) {
@@ -103,7 +115,7 @@ public class ExpenseService {
             endDate = targetMonth.atEndOfMonth();
         }
 
-        return expenseRepository.findPageByTenantAndFilters(
+        Page<ExpenseResponse> page = expenseRepository.findPageByTenantAndFilters(
                         tenantId,
                         startDate,
                         endDate,
@@ -114,6 +126,21 @@ public class ExpenseService {
                         searchPattern,
                         pageable)
                 .map(this::toResponse);
+
+        BigDecimal filteredTotalAmount = expenseRepository.sumByTenantAndFilters(
+                tenantId,
+                startDate,
+                endDate,
+                effectiveCategoryIds,
+                type,
+                paymentStatus,
+                applySearchFilter,
+                searchPattern);
+
+        return new ExpensePageSearchResult(page, filteredTotalAmount != null ? filteredTotalAmount : BigDecimal.ZERO);
+    }
+
+    public record ExpensePageSearchResult(Page<ExpenseResponse> page, BigDecimal filteredTotalAmount) {
     }
 
     @Transactional(readOnly = true)

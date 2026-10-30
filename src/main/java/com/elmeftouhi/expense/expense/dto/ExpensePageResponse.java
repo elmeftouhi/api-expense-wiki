@@ -1,5 +1,6 @@
 package com.elmeftouhi.expense.expense.dto;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 public record ExpensePageResponse(
@@ -7,7 +8,9 @@ public record ExpensePageResponse(
         int page,
         int size,
         long totalElements,
-        int totalPages
+        int totalPages,
+        BigDecimal filteredTotalAmount,
+        int recordsCount
 ) {
 }
 

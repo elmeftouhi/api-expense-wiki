@@ -75,7 +75,7 @@ public class ExpenseController {
             effectiveCategoryIds.add(categoryId);
         }
 
-        Page<ExpenseResponse> pageResult = expenseService.findAll(
+        ExpenseService.ExpensePageSearchResult pageSearchResult = expenseService.findAllWithAggregates(
                 year,
                 month,
                 effectiveCategoryIds.isEmpty() ? null : effectiveCategoryIds.stream().distinct().toList(),
@@ -83,12 +83,15 @@ public class ExpenseController {
                 status,
                 search,
                 pageable);
+        Page<ExpenseResponse> pageResult = pageSearchResult.page();
         return new ExpensePageResponse(
                 pageResult.getContent(),
                 pageResult.getNumber(),
                 pageResult.getSize(),
                 pageResult.getTotalElements(),
-                pageResult.getTotalPages()
+                pageResult.getTotalPages(),
+                pageSearchResult.filteredTotalAmount(),
+                pageResult.getNumberOfElements()
         );
     }
 
