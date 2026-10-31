@@ -2,6 +2,7 @@ package com.elmeftouhi.expense.notification;
 
 import com.elmeftouhi.expense.notification.entity.Notification;
 import com.elmeftouhi.expense.notification.repository.NotificationRepository;
+import com.elmeftouhi.expense.notification.service.NotificationRealtimeService;
 import com.elmeftouhi.expense.notification.service.NotificationService;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -29,6 +30,9 @@ class NotificationServiceTests {
 
     @Mock
     private NotificationRepository notificationRepository;
+
+    @Mock
+    private NotificationRealtimeService notificationRealtimeService;
 
     @InjectMocks
     private NotificationService notificationService;
@@ -64,6 +68,7 @@ class NotificationServiceTests {
 
         // Then
         verify(notificationRepository, times(1)).save(any(Notification.class));
+        verify(notificationRealtimeService, times(1)).publishCreated(eq(tenantId), eq(userId), any());
     }
 
     @Test
@@ -153,6 +158,7 @@ class NotificationServiceTests {
         assertNotNull(response);
         assertEquals(NotificationStatus.READ, response.status());
         verify(notificationRepository, times(1)).save(any(Notification.class));
+        verify(notificationRealtimeService, times(1)).publishUpdated(eq(tenantId), eq(userId), any());
     }
 
     @Test
@@ -176,6 +182,7 @@ class NotificationServiceTests {
         assertNotNull(response);
         assertEquals(NotificationStatus.ARCHIVED, response.status());
         verify(notificationRepository, times(1)).save(any(Notification.class));
+        verify(notificationRealtimeService, times(1)).publishUpdated(eq(tenantId), eq(userId), any());
     }
 
     @Test
@@ -234,6 +241,7 @@ class NotificationServiceTests {
 
         // Then
         verify(notificationRepository, times(1)).saveAll(any());
+        verify(notificationRealtimeService, times(1)).publishBulkMarkedAsRead(tenantId, userId, 2);
     }
 }
 

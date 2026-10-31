@@ -357,6 +357,28 @@ Response: 200 OK
 
 `status` is optional and accepts `SENT`, `READ`, or `ARCHIVED`.
 
+### Stream Notifications (SSE)
+```http
+GET /v1/notifications/stream
+Authorization: Bearer {token}
+Accept: text/event-stream
+X-Tenant-Id: {tenantId}
+```
+
+Server-Sent Events emitted by this stream:
+
+- `connected`: sent once when the stream is established.
+- `notification-created`: sent whenever a new in-app notification is created for the authenticated user.
+- `notification-updated`: sent when a notification changes state (for example `SENT -> READ` or `SENT -> ARCHIVED`).
+- `notifications-bulk-read`: sent after `POST /v1/notifications/mark-all-as-read` with payload:
+
+```json
+{
+  "changedCount": 5,
+  "timestamp": "2026-10-31T23:50:00Z"
+}
+```
+
 ### Get Unread Notifications
 ```http
 GET /v1/notifications/unread

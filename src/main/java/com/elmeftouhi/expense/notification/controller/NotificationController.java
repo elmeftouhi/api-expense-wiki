@@ -5,10 +5,12 @@ import com.elmeftouhi.expense.multitenancy.TenantContext;
 import com.elmeftouhi.expense.notification.NotificationStatus;
 import com.elmeftouhi.expense.notification.dto.NotificationPageResponse;
 import com.elmeftouhi.expense.notification.dto.NotificationResponse;
+import com.elmeftouhi.expense.notification.service.NotificationRealtimeService;
 import com.elmeftouhi.expense.security.JwtPrincipal;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 @RequestMapping("/v1/notifications")
@@ -27,6 +30,7 @@ public class NotificationController {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final NotificationService notificationService;
+    private final NotificationRealtimeService notificationRealtimeService;
 
     @GetMapping
     public List<NotificationResponse> getNotifications() {
@@ -51,6 +55,13 @@ public class NotificationController {
         Long tenantId = TenantContext.getRequiredTenantId();
         Long userId = getCurrentUserId();
         return notificationService.getUserNotificationsPage(tenantId, userId, page, size, status);
+    }
+
+    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamNotifications() {
+        Long tenantId = TenantContext.getRequiredTenantId();
+        Long userId = getCurrentUserId();
+        return notificationRealtimeService.subscribe(tenantId, userId);
     }
 
     @GetMapping("/unread")

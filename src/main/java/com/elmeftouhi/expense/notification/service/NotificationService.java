@@ -15,6 +15,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -22,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final NotificationRealtimeService notificationRealtimeService;
 
     @Transactional
     public void sendNotification(
@@ -42,7 +45,9 @@ public class NotificationService {
         notification.setSubjectId(subjectId);
         notification.setStatus(NotificationStatus.SENT);
 
-        notificationRepository.save(notification);
+        Notification saved = notificationRepository.save(notification);
+        NotificationResponse response = toResponse(saved);
+        runAfterCommit(() -> notificationRealtimeService.publishCreated(tenantId, userId, response));
     }
 
     @Transactional
@@ -106,8 +111,10 @@ public class NotificationService {
 
         notification.markAsRead();
         Notification saved = notificationRepository.save(notification);
+        NotificationResponse response = toResponse(saved);
+        runAfterCommit(() -> notificationRealtimeService.publishUpdated(tenantId, userId, response));
 
-        return toResponse(saved);
+        return response;
     }
 
     @Transactional
@@ -117,8 +124,10 @@ public class NotificationService {
 
         notification.markAsArchived();
         Notification saved = notificationRepository.save(notification);
+        NotificationResponse response = toResponse(saved);
+        runAfterCommit(() -> notificationRealtimeService.publishUpdated(tenantId, userId, response));
 
-        return toResponse(saved);
+        return response;
     }
 
     @Transactional
@@ -128,6 +137,10 @@ public class NotificationService {
 
         unread.forEach(Notification::markAsRead);
         notificationRepository.saveAll(unread);
+        int changedCount = unread.size();
+        if (changedCount > 0) {
+            runAfterCommit(() -> notificationRealtimeService.publishBulkMarkedAsRead(tenantId, userId, changedCount));
+        }
     }
 
     @Transactional(readOnly = true)
@@ -177,5 +190,18 @@ public class NotificationService {
                 notification.getReadAt(),
                 notification.getArchivedAt()
         );
+    }
+
+    private void runAfterCommit(Runnable action) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    action.run();
+                }
+            });
+            return;
+        }
+        action.run();
     }
 }
