@@ -22,6 +22,8 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
 
     Optional<Subscription> findByIdAndTenantId(Long id, Long tenantId);
 
+    List<Subscription> findByTenantIdOrderByCreatedAtAscIdAsc(Long tenantId);
+
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM Subscription s WHERE s.id = :id AND s.tenantId = :tenantId")

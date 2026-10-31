@@ -21,6 +21,8 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
 
     List<Expense> findByTenantIdAndDeletedFalseOrderByDueDateDesc(Long tenantId);
 
+    List<Expense> findByTenantIdOrderByDueDateDesc(Long tenantId);
+
     List<Expense> findByTenantIdAndCategoryIdAndDeletedFalse(Long tenantId, Long categoryId);
 
     List<Expense> findByTenantIdAndStatusAndDeletedFalse(Long tenantId, ExpenseStatus status);

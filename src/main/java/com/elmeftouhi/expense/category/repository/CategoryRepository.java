@@ -36,6 +36,8 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     Optional<Category> findByTenantIdAndNameIgnoreCase(Long tenantId, String name);
 
+    List<Category> findByTenantIdOrderByLevelAscNameAscIdAsc(Long tenantId);
+
     List<Category> findByTenantIdAndIdIn(Long tenantId, Collection<Long> ids);
 
     @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END FROM Category c WHERE c.tenantId = :tenantId AND c.parentCategory.id = :parentCategoryId")

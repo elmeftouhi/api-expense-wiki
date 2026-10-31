@@ -20,6 +20,8 @@ public interface BudgetPeriodInstanceRepository extends JpaRepository<BudgetPeri
 
     Optional<BudgetPeriodInstance> findByBudgetIdAndTenantIdAndStartDate(Long budgetId, Long tenantId, LocalDate startDate);
 
+    List<BudgetPeriodInstance> findByTenantIdOrderByStartDateAscIdAsc(Long tenantId);
+
     @Query("""
             SELECT p
             FROM BudgetPeriodInstance p

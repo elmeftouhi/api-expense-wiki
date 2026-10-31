@@ -24,6 +24,8 @@ public interface SubscriptionPaymentRepository extends JpaRepository<Subscriptio
     List<SubscriptionPayment> findByTenantIdAndScheduledBillingDateBetween(
             Long tenantId, LocalDate startDate, LocalDate endDate);
 
+    List<SubscriptionPayment> findByTenantIdOrderByScheduledBillingDateAscIdAsc(Long tenantId);
+
     boolean existsByTenantIdAndSubscriptionIdAndScheduledBillingDate(
             Long tenantId,
             Long subscriptionId,
