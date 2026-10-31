@@ -467,14 +467,19 @@ class ExpenseServiceTests {
         when(expenseRepository.findByTenantIdAndStatusAndDueDateBetweenAndDeletedFalse(
                 tenantId, ExpenseStatus.PAID, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31)))
                 .thenReturn(List.of(first, second, third));
+        when(expenseRepository.findByTenantIdAndStatusAndDueDateBetweenAndDeletedFalse(
+                tenantId, ExpenseStatus.PAID, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30)))
+                .thenReturn(List.of());
 
         ExpenseDailyChartResponse response = expenseService.getDailyTotalsForMonth(2026, 10);
 
         assertEquals(31, response.totals().size());
+        assertEquals(31, response.previousMonthTotals().size());
         assertEquals(BigDecimal.valueOf(12), response.totals().get(0).total());
         assertEquals(BigDecimal.ZERO, response.totals().get(1).total());
         assertEquals(BigDecimal.valueOf(10), response.totals().get(2).total());
         assertEquals(BigDecimal.ZERO, response.totals().get(30).total());
+        assertEquals(BigDecimal.ZERO, response.previousMonthTotals().get(0).total());
     }
 
     @Test
@@ -519,9 +524,14 @@ class ExpenseServiceTests {
         LocalDate today = LocalDate.now();
         LocalDate expectedStart = today.withDayOfMonth(1);
         LocalDate expectedEnd = today.withDayOfMonth(today.lengthOfMonth());
+        LocalDate expectedPreviousStart = today.minusMonths(1).withDayOfMonth(1);
+        LocalDate expectedPreviousEnd = today.minusMonths(1).withDayOfMonth(today.minusMonths(1).lengthOfMonth());
 
         when(expenseRepository.findByTenantIdAndStatusAndDueDateBetweenAndDeletedFalse(
                 tenantId, ExpenseStatus.PAID, expectedStart, expectedEnd))
+                .thenReturn(List.of());
+        when(expenseRepository.findByTenantIdAndStatusAndDueDateBetweenAndDeletedFalse(
+                tenantId, ExpenseStatus.PAID, expectedPreviousStart, expectedPreviousEnd))
                 .thenReturn(List.of());
 
         ExpenseDailyChartResponse response = expenseService.getDailyTotalsForMonth(null, null);
@@ -529,6 +539,39 @@ class ExpenseServiceTests {
         assertEquals(today.getYear(), response.year());
         assertEquals(today.getMonthValue(), response.month());
         assertEquals(today.lengthOfMonth(), response.totals().size());
+        assertEquals(today.lengthOfMonth(), response.previousMonthTotals().size());
+    }
+
+    @Test
+    @DisplayName("Should include previous month totals and handle year boundary for daily chart")
+    void testGetDailyTotalsForMonthWithPreviousMonthComparisonAcrossYearBoundary() {
+        Expense januaryFirst = new Expense();
+        januaryFirst.setDueDate(LocalDate.of(2026, 1, 1));
+        januaryFirst.setAmount(BigDecimal.valueOf(11));
+
+        Expense decemberFirst = new Expense();
+        decemberFirst.setDueDate(LocalDate.of(2025, 12, 1));
+        decemberFirst.setAmount(BigDecimal.valueOf(5));
+
+        Expense decemberThirtyFirst = new Expense();
+        decemberThirtyFirst.setDueDate(LocalDate.of(2025, 12, 31));
+        decemberThirtyFirst.setAmount(BigDecimal.valueOf(9));
+
+        when(expenseRepository.findByTenantIdAndStatusAndDueDateBetweenAndDeletedFalse(
+                tenantId, ExpenseStatus.PAID, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31)))
+                .thenReturn(List.of(januaryFirst));
+        when(expenseRepository.findByTenantIdAndStatusAndDueDateBetweenAndDeletedFalse(
+                tenantId, ExpenseStatus.PAID, LocalDate.of(2025, 12, 1), LocalDate.of(2025, 12, 31)))
+                .thenReturn(List.of(decemberFirst, decemberThirtyFirst));
+
+        ExpenseDailyChartResponse response = expenseService.getDailyTotalsForMonth(2026, 1);
+
+        assertEquals(31, response.totals().size());
+        assertEquals(31, response.previousMonthTotals().size());
+        assertEquals(BigDecimal.valueOf(11), response.totals().get(0).total());
+        assertEquals(BigDecimal.ZERO, response.totals().get(1).total());
+        assertEquals(BigDecimal.valueOf(5), response.previousMonthTotals().get(0).total());
+        assertEquals(BigDecimal.valueOf(9), response.previousMonthTotals().get(30).total());
     }
 
     @Test

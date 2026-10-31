@@ -6,7 +6,8 @@ import java.util.List;
 public record ExpenseDailyChartResponse(
         Integer year,
         Integer month,
-        List<DayTotal> totals
+        List<DayTotal> totals,
+        List<DayTotal> previousMonthTotals
 ) {
     public record DayTotal(
             Integer day,

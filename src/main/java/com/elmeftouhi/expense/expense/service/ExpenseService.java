@@ -365,22 +365,36 @@ public class ExpenseService {
 
         Long tenantId = TenantContext.getRequiredTenantId();
         YearMonth yearMonth = YearMonth.of(effectiveYear, effectiveMonth);
+        YearMonth previousYearMonth = yearMonth.minusMonths(1);
         LocalDate startDate = yearMonth.atDay(1);
         LocalDate endDate = yearMonth.atEndOfMonth();
+        LocalDate previousStartDate = previousYearMonth.atDay(1);
+        LocalDate previousEndDate = previousYearMonth.atEndOfMonth();
 
         List<Expense> expenses = expenseRepository.findByTenantIdAndStatusAndDueDateBetweenAndDeletedFalse(
                 tenantId,
                 ExpenseStatus.PAID,
                 startDate,
                 endDate);
+        List<Expense> previousMonthExpenses = expenseRepository.findByTenantIdAndStatusAndDueDateBetweenAndDeletedFalse(
+                tenantId,
+                ExpenseStatus.PAID,
+                previousStartDate,
+                previousEndDate);
         Map<Integer, BigDecimal> totalsByDay = aggregateTotalsByPeriod(expenses, true);
+        Map<Integer, BigDecimal> previousTotalsByDay = aggregateTotalsByPeriod(previousMonthExpenses, true);
 
         List<ExpenseDailyChartResponse.DayTotal> totals = new ArrayList<>();
+        List<ExpenseDailyChartResponse.DayTotal> previousMonthTotals = new ArrayList<>();
         for (int day = 1; day <= yearMonth.lengthOfMonth(); day++) {
             totals.add(new ExpenseDailyChartResponse.DayTotal(day, totalsByDay.getOrDefault(day, BigDecimal.ZERO)));
+            BigDecimal previousMonthTotal = day <= previousYearMonth.lengthOfMonth()
+                    ? previousTotalsByDay.getOrDefault(day, BigDecimal.ZERO)
+                    : BigDecimal.ZERO;
+            previousMonthTotals.add(new ExpenseDailyChartResponse.DayTotal(day, previousMonthTotal));
         }
 
-        return new ExpenseDailyChartResponse(effectiveYear, effectiveMonth, totals);
+        return new ExpenseDailyChartResponse(effectiveYear, effectiveMonth, totals, previousMonthTotals);
     }
 
     @Transactional(readOnly = true)

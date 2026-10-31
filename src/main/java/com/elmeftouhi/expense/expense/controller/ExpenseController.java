@@ -190,7 +190,7 @@ public class ExpenseController {
     }
 
     @GetMapping("/charts/daily")
-    @Operation(summary = "Get daily chart totals", description = "Returns day-by-day totals for a given year and month, filling missing days with zero")
+    @Operation(summary = "Get daily chart totals", description = "Returns day-by-day totals for a given year and month plus previous-month comparison totals, filling missing days with zero")
     @ApiResponse(responseCode = "200", description = "Daily chart totals returned successfully")
     public ExpenseDailyChartResponse getDailyChartTotals(
             @Parameter(description = "Year", example = "2026")
