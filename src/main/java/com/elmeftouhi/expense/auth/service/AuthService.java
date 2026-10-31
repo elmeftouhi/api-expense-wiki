@@ -77,7 +77,8 @@ public class AuthService {
         user.setLastName(request.lastName() != null ? request.lastName().trim() : null);
         user.setPhone(request.phone() != null ? request.phone().trim() : null);
         user.setStatus(UserStatus.ACTIVE);
-        user.getRoles().add(Role.ADMIN);
+        // Public registration grants tenant administration, never system administration.
+        user.getRoles().add(Role.USER);
         user.setDefaultTenant(tenant);
         user = appUserRepository.save(user);
 
