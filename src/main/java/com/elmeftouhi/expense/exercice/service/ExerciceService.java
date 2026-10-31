@@ -6,6 +6,7 @@ import com.elmeftouhi.expense.exercice.ExerciceStatus;
 import com.elmeftouhi.expense.exercice.dto.ExerciceCreateRequest;
 import com.elmeftouhi.expense.exercice.dto.ExerciceResponse;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
+import com.elmeftouhi.expense.security.TenantPermissionService;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
 import java.util.List;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ExerciceService {
 
     private final ExerciceRepository exerciceRepository;
+    private final TenantPermissionService tenantPermissionService;
 
     @Transactional(readOnly = true)
     public List<ExerciceResponse> findAll() {
@@ -29,6 +31,7 @@ public class ExerciceService {
 
     @Transactional
     public ExerciceResponse create(ExerciceCreateRequest request) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
 
         if (request.startDate().isAfter(request.endDate())) {
@@ -55,6 +58,7 @@ public class ExerciceService {
 
     @Transactional
     public ExerciceResponse updateStatus(Long id, ExerciceStatus status) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         Exercice exercice = exerciceRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exercice not found"));

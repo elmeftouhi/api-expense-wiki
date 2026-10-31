@@ -8,6 +8,7 @@ import com.elmeftouhi.expense.security.AppUserDetails;
 import com.elmeftouhi.expense.security.JwtProperties;
 import com.elmeftouhi.expense.security.JwtService;
 import com.elmeftouhi.expense.security.TokenBlacklistService;
+import com.elmeftouhi.expense.security.TenantPermissionService;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import com.elmeftouhi.expense.shared.exception.ConflictException;
 import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
@@ -60,6 +61,7 @@ public class AuthService {
     private final TokenBlacklistService tokenBlacklistService;
     private final JwtProperties jwtProperties;
     private final ExerciceRepository exerciceRepository;
+    private final TenantPermissionService tenantPermissionService;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -174,16 +176,13 @@ public class AuthService {
 
     @Transactional
     public TenantInviteResponse createTenantInviteForUser(Long userId, Long tenantId, Integer expiresInHours, TenantRole role) {
+        if (!tenantPermissionService.hasRole(userId, tenantId, TenantRole.ADMIN)) {
+            throw new TenantAccessDeniedException("Only tenant admins can create invites");
+        }
         AppUser user = loadUserWithDefaultTenant(userId);
 
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant not found"));
-
-        boolean isGlobalAdmin = user.getRoles().contains(Role.ADMIN);
-        boolean isTenantAdmin = isGlobalAdmin || hasTenantRole(userId, tenantId, TenantRole.ADMIN);
-        if (!isTenantAdmin) {
-            throw new TenantAccessDeniedException("Only tenant admins can create invites");
-        }
 
         Instant expiresAt = Instant.now().plusSeconds(expiresInHours.longValue() * 3600);
 
@@ -206,16 +205,8 @@ public class AuthService {
 
     @Transactional
     public void removeTenantMember(Long callerUserId, Long tenantId, Long memberUserId) {
-        AppUser caller = loadUserWithDefaultTenant(callerUserId);
-
-        boolean isGlobalAdmin = caller.getRoles().contains(Role.ADMIN);
-        boolean isTenantAdmin = isGlobalAdmin || hasTenantRole(callerUserId, tenantId, TenantRole.ADMIN);
-        if (!isTenantAdmin) {
+        if (!tenantPermissionService.hasRole(callerUserId, tenantId, TenantRole.ADMIN)) {
             throw new TenantAccessDeniedException("Only tenant admins can remove members");
-        }
-
-        if (!isGlobalAdmin && !userTenantRepository.existsByUserIdAndTenantId(callerUserId, tenantId)) {
-            throw new TenantAccessDeniedException("You do not belong to this tenant");
         }
 
         if (callerUserId.equals(memberUserId)) {
@@ -239,11 +230,7 @@ public class AuthService {
 
     @Transactional
     public void updateTenantForUser(Long callerUserId, Long tenantId, String tenantName) {
-        AppUser caller = loadUserWithDefaultTenant(callerUserId);
-
-        boolean isGlobalAdmin = caller.getRoles().contains(Role.ADMIN);
-        boolean isTenantAdmin = isGlobalAdmin || hasTenantRole(callerUserId, tenantId, TenantRole.ADMIN);
-        if (!isTenantAdmin) {
+        if (!tenantPermissionService.hasRole(callerUserId, tenantId, TenantRole.ADMIN)) {
             throw new TenantAccessDeniedException("Only tenant admins can update tenant info");
         }
 
@@ -337,25 +324,5 @@ public class AuthService {
     private AppUser loadUserWithDefaultTenant(Long userId) {
         return appUserRepository.findWithDefaultTenantById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-    }
-
-    private boolean hasTenantRole(Long userId, Long tenantId, TenantRole requiredRole) {
-        return userTenantRepository.findByUserIdAndTenantId(userId, tenantId)
-                .map(this::resolveTenantRole)
-                .map(role -> role.atLeast(requiredRole))
-                .orElse(false);
-    }
-
-    private TenantRole resolveTenantRole(UserTenant userTenant) {
-        if (userTenant.getTenantRole() != null) {
-            return userTenant.getTenantRole();
-        }
-        if (userTenant.getUser() != null
-                && userTenant.getUser().getDefaultTenant() != null
-                && userTenant.getTenant() != null
-                && userTenant.getUser().getDefaultTenant().getId().equals(userTenant.getTenant().getId())) {
-            return TenantRole.ADMIN;
-        }
-        return TenantRole.VIEWER;
     }
 }

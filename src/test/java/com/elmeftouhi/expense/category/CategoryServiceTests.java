@@ -18,6 +18,7 @@ import com.elmeftouhi.expense.activity.ActivitySubjectType;
 import com.elmeftouhi.expense.category.dto.CategoryCreateRequest;
 import com.elmeftouhi.expense.category.dto.CategoryResponse;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
+import com.elmeftouhi.expense.security.TenantPermissionService;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import com.elmeftouhi.expense.shared.exception.ConflictException;
 import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
@@ -43,6 +45,10 @@ class CategoryServiceTests {
 
     @Autowired
     private ActivityLogRepository activityLogRepository;
+
+    // These tests exercise category persistence; real authorization is covered separately.
+    @MockBean
+    private TenantPermissionService tenantPermissionService;
 
     @AfterEach
     void clearTenant() {

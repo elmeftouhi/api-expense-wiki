@@ -8,6 +8,7 @@ import com.elmeftouhi.expense.expense.entity.Subscription;
 import com.elmeftouhi.expense.expense.repository.SubscriptionPaymentRepository;
 import com.elmeftouhi.expense.expense.repository.SubscriptionRepository;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
+import com.elmeftouhi.expense.security.TenantPermissionService;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
 import java.time.LocalDate;
@@ -24,6 +25,7 @@ public class SubscriptionPaymentService {
     private final SubscriptionPaymentRepository subscriptionPaymentRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final SubscriptionGenerationService subscriptionGenerationService;
+    private final TenantPermissionService tenantPermissionService;
 
     @Transactional(readOnly = true)
     public Page<SubscriptionPaymentResponse> getPaymentHistoryBySubscription(Long subscriptionId, Pageable pageable) {
@@ -46,6 +48,7 @@ public class SubscriptionPaymentService {
 
     @Transactional
     public SubscriptionPaymentGenerationResponse generateNextPayment(Long subscriptionId) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         Subscription subscription = subscriptionRepository.findByIdAndTenantId(subscriptionId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscription not found"));
@@ -111,6 +114,7 @@ public class SubscriptionPaymentService {
 
     @Transactional
     public SubscriptionPaymentGenerationResponse backfillPayment(Long subscriptionId, SubscriptionPaymentBackfillRequest request) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         Subscription subscription = subscriptionRepository.findByIdAndTenantId(subscriptionId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscription not found"));

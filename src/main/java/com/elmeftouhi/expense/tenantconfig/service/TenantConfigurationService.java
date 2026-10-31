@@ -7,6 +7,7 @@ import com.elmeftouhi.expense.tenantconfig.Language;
 import com.elmeftouhi.expense.tenantconfig.TimeFormat;
 import com.elmeftouhi.expense.tenantconfig.WeekStartDay;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
+import com.elmeftouhi.expense.security.TenantPermissionService;
 import com.elmeftouhi.expense.shared.exception.ConflictException;
 import com.elmeftouhi.expense.tenantconfig.dto.TenantConfigurationRequest;
 import com.elmeftouhi.expense.tenantconfig.dto.TenantConfigurationResponse;
@@ -28,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class TenantConfigurationService {
 
     private final TenantConfigurationRepository configRepository;
+    private final TenantPermissionService tenantPermissionService;
 
     // Cache with simple TTL (5 minutes)
     private static final long CACHE_TTL_MINUTES = 5;
@@ -56,6 +58,7 @@ public class TenantConfigurationService {
 
     @Transactional
     public TenantConfigurationResponse updateConfiguration(TenantConfigurationRequest request) {
+        tenantPermissionService.requireAdmin();
         Long tenantId = TenantContext.getRequiredTenantId();
         TenantConfiguration config = loadConfiguration(tenantId);
 

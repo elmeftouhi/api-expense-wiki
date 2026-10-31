@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.elmeftouhi.expense.multitenancy.TenantContext;
+import com.elmeftouhi.expense.security.TenantPermissionService;
 import com.elmeftouhi.expense.shared.exception.ConflictException;
 import com.elmeftouhi.expense.tenantconfig.dto.TenantConfigurationRequest;
 import com.elmeftouhi.expense.tenantconfig.dto.TenantConfigurationResponse;
@@ -31,6 +32,9 @@ class TenantConfigurationServiceTests {
 
     @InjectMocks
     private TenantConfigurationService configService;
+
+    @Mock
+    private TenantPermissionService tenantPermissionService;
 
     private Long tenantId = 1L;
 

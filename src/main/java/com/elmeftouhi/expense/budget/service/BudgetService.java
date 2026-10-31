@@ -17,6 +17,7 @@ import com.elmeftouhi.expense.budget.dto.BudgetResponse;
 import com.elmeftouhi.expense.category.entity.Category;
 import com.elmeftouhi.expense.category.repository.CategoryRepository;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
+import com.elmeftouhi.expense.security.TenantPermissionService;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
 import java.math.BigDecimal;
@@ -39,6 +40,7 @@ public class BudgetService {
     private final BudgetTrackingService budgetTrackingService;
     private final CategoryRepository categoryRepository;
     private final ActivityLogService activityLogService;
+    private final TenantPermissionService tenantPermissionService;
 
     @Transactional(readOnly = true)
     public List<BudgetResponse> findAll() {
@@ -59,6 +61,7 @@ public class BudgetService {
 
     @Transactional
     public BudgetResponse create(BudgetCreateRequest request) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         validateWarningThreshold(request.warningType(), request.warningThreshold());
 
@@ -77,6 +80,7 @@ public class BudgetService {
 
     @Transactional
     public BudgetResponse update(Long id, BudgetCreateRequest request) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         validateWarningThreshold(request.warningType(), request.warningThreshold());
 
@@ -118,6 +122,7 @@ public class BudgetService {
 
     @Transactional
     public BudgetPeriodResponse updatePeriod(Long budgetId, Long periodId, BudgetPeriodUpdateRequest request) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         validateWarningThreshold(request.warningType(), request.warningThreshold());
         loadBudget(budgetId, tenantId);

@@ -20,6 +20,7 @@ import com.elmeftouhi.expense.budget.service.BudgetTrackingService;
 import com.elmeftouhi.expense.category.entity.Category;
 import com.elmeftouhi.expense.category.repository.CategoryRepository;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
+import com.elmeftouhi.expense.security.TenantPermissionService;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -53,6 +54,9 @@ class BudgetServiceTests {
 
     @InjectMocks
     private BudgetService budgetService;
+
+    @Mock
+    private TenantPermissionService tenantPermissionService;
 
     @AfterEach
     void tearDown() {

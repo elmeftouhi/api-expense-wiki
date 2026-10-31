@@ -1,6 +1,7 @@
 package com.elmeftouhi.expense.paymentmethod.service;
 
 import com.elmeftouhi.expense.multitenancy.TenantContext;
+import com.elmeftouhi.expense.security.TenantPermissionService;
 import com.elmeftouhi.expense.paymentmethod.dto.PaymentMethodRequest;
 import com.elmeftouhi.expense.paymentmethod.dto.PaymentMethodResponse;
 import com.elmeftouhi.expense.paymentmethod.entity.PaymentMethod;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PaymentMethodService {
 
     private final PaymentMethodRepository paymentMethodRepository;
+    private final TenantPermissionService tenantPermissionService;
 
     @Transactional(readOnly = true)
     public List<PaymentMethodResponse> findAll(boolean includeInactive) {
@@ -31,6 +33,7 @@ public class PaymentMethodService {
 
     @Transactional
     public PaymentMethodResponse create(PaymentMethodRequest request) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         String normalizedName = normalizeName(request.name());
 
@@ -69,6 +72,7 @@ public class PaymentMethodService {
 
     @Transactional
     public PaymentMethodResponse update(Long id, PaymentMethodRequest request) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         PaymentMethod paymentMethod = loadPaymentMethod(id, tenantId);
         String normalizedName = normalizeName(request.name());
@@ -113,6 +117,7 @@ public class PaymentMethodService {
 
     @Transactional
     public PaymentMethodResponse setDefault(Long id) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         PaymentMethod paymentMethod = loadPaymentMethod(id, tenantId);
 

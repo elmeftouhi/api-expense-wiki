@@ -20,6 +20,7 @@ import com.elmeftouhi.expense.multitenancy.TenantContext;
 import com.elmeftouhi.expense.paymentmethod.entity.PaymentMethod;
 import com.elmeftouhi.expense.paymentmethod.service.PaymentMethodService;
 import com.elmeftouhi.expense.security.JwtPrincipal;
+import com.elmeftouhi.expense.security.TenantPermissionService;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
 import com.elmeftouhi.expense.tenantconfig.ConfigurationContext;
@@ -62,6 +63,9 @@ class ExpenseServiceTests {
 
     @InjectMocks
     private ExpenseService expenseService;
+
+    @Mock
+    private TenantPermissionService tenantPermissionService;
 
     private Long tenantId = 1L;
     private Long categoryId = 1L;

@@ -21,6 +21,7 @@ import com.elmeftouhi.expense.multitenancy.TenantContext;
 import com.elmeftouhi.expense.paymentmethod.entity.PaymentMethod;
 import com.elmeftouhi.expense.paymentmethod.service.PaymentMethodService;
 import com.elmeftouhi.expense.security.JwtPrincipal;
+import com.elmeftouhi.expense.security.TenantPermissionService;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
 import com.elmeftouhi.expense.tenantconfig.ConfigurationContext;
@@ -50,6 +51,7 @@ public class ExpenseService {
     private final ActivityLogService activityLogService;
     private final BudgetTrackingService budgetTrackingService;
     private final PaymentMethodService paymentMethodService;
+    private final TenantPermissionService tenantPermissionService;
 
     @Transactional(readOnly = true)
     public Page<ExpenseResponse> findAll(
@@ -152,6 +154,7 @@ public class ExpenseService {
 
     @Transactional
     public ExpenseResponse create(ExpenseCreateRequest request) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         Long userId = getCurrentUserId();
 
@@ -216,6 +219,7 @@ public class ExpenseService {
 
     @Transactional
     public ExpenseResponse update(Long id, ExpenseCreateRequest request) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         Expense expense = loadExpense(id, tenantId);
         ExpenseBudgetSnapshot previousSnapshot = ExpenseBudgetSnapshot.fromExpense(expense);
@@ -250,6 +254,7 @@ public class ExpenseService {
 
     @Transactional
     public void delete(Long id) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         Expense expense = loadExpense(id, tenantId);
         ExpenseBudgetSnapshot snapshot = ExpenseBudgetSnapshot.fromExpense(expense);
@@ -264,6 +269,7 @@ public class ExpenseService {
 
     @Transactional
     public ExpenseResponse markAsPaid(Long id, LocalDate paidDate) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         Expense expense = loadExpense(id, tenantId);
 
@@ -289,6 +295,7 @@ public class ExpenseService {
 
     @Transactional
     public ExpenseResponse changeStatus(Long id, ExpenseStatus newStatus, LocalDate paidDate) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         Expense expense = loadExpense(id, tenantId);
 

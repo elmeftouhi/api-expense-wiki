@@ -8,6 +8,7 @@ import com.elmeftouhi.expense.activity.ActivitySubjectType;
 import com.elmeftouhi.expense.category.dto.CategoryCreateRequest;
 import com.elmeftouhi.expense.category.dto.CategoryResponse;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
+import com.elmeftouhi.expense.security.TenantPermissionService;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import com.elmeftouhi.expense.shared.exception.ConflictException;
 import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
@@ -26,6 +27,7 @@ public class CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final ActivityLogService activityLogService;
+    private final TenantPermissionService tenantPermissionService;
 
     @Transactional(readOnly = true)
     public List<CategoryResponse> findAll() {
@@ -53,6 +55,7 @@ public class CategoryService {
 
     @Transactional
     public CategoryResponse create(CategoryCreateRequest request) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         String normalizedName = normalizeName(request.name());
         ensureNameIsAvailable(tenantId, normalizedName, null);
@@ -74,6 +77,7 @@ public class CategoryService {
 
     @Transactional
     public CategoryResponse update(Long id, CategoryCreateRequest request) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         Category category = loadCategory(id, tenantId);
         Long previousParentCategoryId = getParentCategoryId(category);
@@ -108,6 +112,7 @@ public class CategoryService {
 
     @Transactional
     public void delete(Long id) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         Category category = loadCategory(id, tenantId);
         Long parentCategoryId = getParentCategoryId(category);
@@ -122,6 +127,7 @@ public class CategoryService {
 
     @Transactional
     public CategoryResponse switchStatus(Long id) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         Category category = loadCategory(id, tenantId);
         category.setActive(!category.isActive());
@@ -134,6 +140,7 @@ public class CategoryService {
 
     @Transactional
     public void updateLevel(Long id, Integer requestedLevel) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         Category category = loadCategory(id, tenantId);
         Long parentCategoryId = getParentCategoryId(category);

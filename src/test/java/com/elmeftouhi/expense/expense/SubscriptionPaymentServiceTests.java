@@ -17,6 +17,7 @@ import com.elmeftouhi.expense.expense.repository.SubscriptionRepository;
 import com.elmeftouhi.expense.expense.service.SubscriptionGenerationService;
 import com.elmeftouhi.expense.expense.service.SubscriptionPaymentService;
 import com.elmeftouhi.expense.multitenancy.TenantContext;
+import com.elmeftouhi.expense.security.TenantPermissionService;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -42,6 +43,9 @@ class SubscriptionPaymentServiceTests {
 
     @InjectMocks
     private SubscriptionPaymentService subscriptionPaymentService;
+
+    @Mock
+    private TenantPermissionService tenantPermissionService;
 
     @AfterEach
     void tearDown() {

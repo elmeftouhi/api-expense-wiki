@@ -60,6 +60,31 @@ Base config: `application.yml` sets `spring.profiles.default=local`.
 - Tenant join requires an invite code (not tenant id).
 - Invite codes are one-time and expire automatically.
 
+### Tenant permissions
+
+Registration grants system role `USER` and tenant role `ADMIN` only in the newly created tenant.
+System roles and tenant roles are independent. `/v1/users` remains system-admin-only;
+system `ADMIN` does not bypass membership permissions on tenant business operations.
+
+| Operation | VIEWER | EDITOR | Tenant ADMIN |
+| --- | --- | --- | --- |
+| Read tenant financial data and configuration | Yes | Yes | Yes |
+| Create/update/delete expenses; change payment status | No | Yes | Yes |
+| Create/update/pause/resume/stop subscriptions; generate/backfill payments | No | Yes | Yes |
+| Manage categories, budgets, payment methods, and financial periods | No | Yes | Yes |
+| Update tenant configuration/name; create invites; remove members | No | No | Yes |
+
+User-facing mutations enforce permissions in the service layer through `TenantPermissionService`.
+The checker reads the current `user_tenants.tenant_role` from the database, so role changes do not
+require another JWT. Missing memberships, null roles, and missing/mismatched authentication fail
+closed; a default-tenant preference never grants administrator permission. Authenticated callers
+without sufficient permission receive HTTP `403`.
+
+Profile/password self-service and notification actions are separate from financial-write permissions.
+Creating a new tenant and joining through a valid invitation remain available to authenticated users.
+Scheduled generation and other internal maintenance use separate internal methods, not an
+unauthenticated bypass of user-facing write methods. No schema migration is required for these checks.
+
 ## Endpoints
 
 ### Auth
@@ -68,9 +93,9 @@ Base config: `application.yml` sets `spring.profiles.default=local`.
 - `POST /v1/auth/login`
 - `POST /v1/auth/switch-tenant`
 - `POST /v1/auth/tenants` (create tenant and auto-join)
-- `POST /v1/auth/tenants/invites` (create tenant invite code, owner/admin only)
+- `POST /v1/auth/tenants/invites` (create tenant invite code, target-tenant ADMIN only)
 - `POST /v1/auth/tenants/join` (join with invite code)
-- `DELETE /v1/auth/tenants/{tenantId}/members/{memberUserId}` (owner/admin only)
+- `DELETE /v1/auth/tenants/{tenantId}/members/{memberUserId}` (target-tenant ADMIN only)
 - `POST /v1/auth/logout`
 
 ### User
@@ -299,7 +324,7 @@ Response: same shape as login/register with the new tenant selected.
 ```
 
 Notes:
-- Only the tenant owner (user whose `defaultTenantId` is this tenant) or a global `ADMIN` can create invites.
+- Only a member with tenant role `ADMIN` in the target tenant can create invites.
 - Invite max lifetime is 168 hours.
 
 Example response:
@@ -331,7 +356,7 @@ Notes:
 `DELETE /v1/auth/tenants/{tenantId}/members/{memberUserId}`
 
 Notes:
-- Only tenant owner or global `ADMIN` can remove members.
+- Only a member with tenant role `ADMIN` in the target tenant can remove members.
 - Self-removal is blocked on this endpoint.
 - Tenant owner cannot be removed from their own tenant (transfer ownership first).
 - Response: `204 No Content`.

@@ -15,6 +15,7 @@ import com.elmeftouhi.expense.multitenancy.TenantContext;
 import com.elmeftouhi.expense.paymentmethod.entity.PaymentMethod;
 import com.elmeftouhi.expense.paymentmethod.service.PaymentMethodService;
 import com.elmeftouhi.expense.security.JwtPrincipal;
+import com.elmeftouhi.expense.security.TenantPermissionService;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
 import com.elmeftouhi.expense.tenantconfig.ConfigurationContext;
@@ -38,9 +39,11 @@ public class SubscriptionService {
     private final CategoryRepository categoryRepository;
     private final ActivityLogService activityLogService;
     private final PaymentMethodService paymentMethodService;
+    private final TenantPermissionService tenantPermissionService;
 
     @Transactional
     public SubscriptionResponse create(SubscriptionCreateRequest request) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         Long currentUserId = getCurrentUserId();
 
@@ -129,6 +132,7 @@ public class SubscriptionService {
 
     @Transactional
     public SubscriptionResponse update(Long id, SubscriptionCreateRequest request) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         Subscription subscription = loadSubscription(id, tenantId);
 
@@ -167,6 +171,7 @@ public class SubscriptionService {
 
     @Transactional
     public SubscriptionResponse pause(Long id) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         Subscription subscription = loadSubscription(id, tenantId);
 
@@ -187,6 +192,7 @@ public class SubscriptionService {
 
     @Transactional
     public SubscriptionResponse resume(Long id, LocalDate nextBillingDate) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         Subscription subscription = loadSubscription(id, tenantId);
 
@@ -215,6 +221,7 @@ public class SubscriptionService {
 
     @Transactional
     public SubscriptionResponse stop(Long id) {
+        tenantPermissionService.requireEditor();
         Long tenantId = TenantContext.getRequiredTenantId();
         Subscription subscription = loadSubscription(id, tenantId);
 

@@ -20,6 +20,7 @@ import com.elmeftouhi.expense.multitenancy.TenantContext;
 import com.elmeftouhi.expense.paymentmethod.entity.PaymentMethod;
 import com.elmeftouhi.expense.paymentmethod.service.PaymentMethodService;
 import com.elmeftouhi.expense.security.JwtPrincipal;
+import com.elmeftouhi.expense.security.TenantPermissionService;
 import com.elmeftouhi.expense.shared.exception.BadRequestException;
 import com.elmeftouhi.expense.tenantconfig.ConfigurationContext;
 import com.elmeftouhi.expense.tenantconfig.Currency;
@@ -62,6 +63,9 @@ class SubscriptionServiceTests {
 
     @InjectMocks
     private SubscriptionService subscriptionService;
+
+    @Mock
+    private TenantPermissionService tenantPermissionService;
 
     private final Long tenantId = 1L;
     private final Long userId = 99L;
