@@ -39,6 +39,11 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             LocalDate start,
             LocalDate end);
 
+    List<Expense> findByTenantIdAndStatusAndDueDateAndDeletedFalse(
+            Long tenantId,
+            ExpenseStatus status,
+            LocalDate dueDate);
+
     @Query("""
             SELECT e FROM Expense e
             WHERE e.tenantId = :tenantId

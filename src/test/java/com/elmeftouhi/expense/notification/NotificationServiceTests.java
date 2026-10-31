@@ -19,6 +19,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("NotificationService Tests")
@@ -135,15 +138,16 @@ class NotificationServiceTests {
         Notification notification = new Notification();
         notification.setId(1L);
         notification.assignTenantId(tenantId);
+        notification.setUserId(userId);
         notification.setStatus(NotificationStatus.SENT);
         notification.setType(NotificationType.EXPENSE_CREATED);
 
-        when(notificationRepository.findByIdAndTenantId(1L, tenantId))
+        when(notificationRepository.findByIdAndTenantIdAndUserId(1L, tenantId, userId))
                 .thenReturn(Optional.of(notification));
         when(notificationRepository.save(any(Notification.class))).thenReturn(notification);
 
         // When
-        NotificationResponse response = notificationService.markAsRead(1L, tenantId);
+        NotificationResponse response = notificationService.markAsRead(1L, tenantId, userId);
 
         // Then
         assertNotNull(response);
@@ -158,14 +162,15 @@ class NotificationServiceTests {
         Notification notification = new Notification();
         notification.setId(1L);
         notification.assignTenantId(tenantId);
+        notification.setUserId(userId);
         notification.setStatus(NotificationStatus.SENT);
 
-        when(notificationRepository.findByIdAndTenantId(1L, tenantId))
+        when(notificationRepository.findByIdAndTenantIdAndUserId(1L, tenantId, userId))
                 .thenReturn(Optional.of(notification));
         when(notificationRepository.save(any(Notification.class))).thenReturn(notification);
 
         // When
-        NotificationResponse response = notificationService.markAsArchived(1L, tenantId);
+        NotificationResponse response = notificationService.markAsArchived(1L, tenantId, userId);
 
         // Then
         assertNotNull(response);
@@ -177,12 +182,35 @@ class NotificationServiceTests {
     @DisplayName("Should throw exception when marking non-existent notification")
     void testMarkNonExistentNotification() {
         // Given
-        when(notificationRepository.findByIdAndTenantId(999L, tenantId))
+        when(notificationRepository.findByIdAndTenantIdAndUserId(999L, tenantId, userId))
                 .thenReturn(Optional.empty());
 
         // When & Then
         assertThrows(ResourceNotFoundException.class,
-                () -> notificationService.markAsRead(999L, tenantId));
+                () -> notificationService.markAsRead(999L, tenantId, userId));
+    }
+
+    @Test
+    @DisplayName("Should get paged notifications")
+    void testGetPagedNotifications() {
+        // Given
+        Notification notification = new Notification();
+        notification.setId(1L);
+        notification.setUserId(userId);
+        notification.setStatus(NotificationStatus.SENT);
+        notification.setType(NotificationType.BUDGET_ALERT);
+
+        Page<Notification> page = new PageImpl<>(List.of(notification), PageRequest.of(0, 1), 3);
+        when(notificationRepository.findByTenantIdAndUserIdOrderByCreatedAtDesc(eq(tenantId), eq(userId), any()))
+                .thenReturn(page);
+
+        // When
+        var response = notificationService.getUserNotificationsPage(tenantId, userId, 0, 1, null);
+
+        // Then
+        assertEquals(1, response.items().size());
+        assertEquals(3L, response.totalElements());
+        assertTrue(response.hasNext());
     }
 
     @Test

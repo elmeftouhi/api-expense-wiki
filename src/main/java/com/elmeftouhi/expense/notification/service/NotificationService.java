@@ -6,10 +6,14 @@ import com.elmeftouhi.expense.notification.entity.Notification;
 import com.elmeftouhi.expense.notification.repository.NotificationRepository;
 import com.elmeftouhi.expense.expense.entity.Expense;
 import com.elmeftouhi.expense.expense.entity.Subscription;
+import com.elmeftouhi.expense.notification.dto.NotificationPageResponse;
 import com.elmeftouhi.expense.notification.dto.NotificationResponse;
 import com.elmeftouhi.expense.shared.exception.ResourceNotFoundException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -96,8 +100,8 @@ public class NotificationService {
     }
 
     @Transactional
-    public NotificationResponse markAsRead(Long id, Long tenantId) {
-        Notification notification = notificationRepository.findByIdAndTenantId(id, tenantId)
+    public NotificationResponse markAsRead(Long id, Long tenantId, Long userId) {
+        Notification notification = notificationRepository.findByIdAndTenantIdAndUserId(id, tenantId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Notification not found"));
 
         notification.markAsRead();
@@ -107,8 +111,8 @@ public class NotificationService {
     }
 
     @Transactional
-    public NotificationResponse markAsArchived(Long id, Long tenantId) {
-        Notification notification = notificationRepository.findByIdAndTenantId(id, tenantId)
+    public NotificationResponse markAsArchived(Long id, Long tenantId, Long userId) {
+        Notification notification = notificationRepository.findByIdAndTenantIdAndUserId(id, tenantId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Notification not found"));
 
         notification.markAsArchived();
@@ -124,6 +128,37 @@ public class NotificationService {
 
         unread.forEach(Notification::markAsRead);
         notificationRepository.saveAll(unread);
+    }
+
+    @Transactional(readOnly = true)
+    public NotificationPageResponse getUserNotificationsPage(
+            Long tenantId,
+            Long userId,
+            int page,
+            int size,
+            NotificationStatus status) {
+        PageRequest pageRequest = PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id"))
+        );
+
+        Page<Notification> resultPage = status == null
+                ? notificationRepository.findByTenantIdAndUserIdOrderByCreatedAtDesc(tenantId, userId, pageRequest)
+                : notificationRepository.findByTenantIdAndUserIdAndStatusOrderByCreatedAtDesc(
+                        tenantId,
+                        userId,
+                        status,
+                        pageRequest);
+
+        return new NotificationPageResponse(
+                resultPage.map(this::toResponse).getContent(),
+                resultPage.getNumber(),
+                resultPage.getSize(),
+                resultPage.getTotalElements(),
+                resultPage.getTotalPages(),
+                resultPage.hasNext()
+        );
     }
 
     private NotificationResponse toResponse(Notification notification) {
@@ -144,4 +179,3 @@ public class NotificationService {
         );
     }
 }
-

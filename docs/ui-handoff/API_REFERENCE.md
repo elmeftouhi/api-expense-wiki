@@ -323,6 +323,40 @@ Response: 200 OK
 ]
 ```
 
+### Get Notifications (Paged)
+```http
+GET /v1/notifications/page?page=0&size=20&status=SENT
+Authorization: Bearer {token}
+
+Response: 200 OK
+{
+  "items": [
+    {
+      "id": 1,
+      "userId": 1,
+      "type": "PAYMENT_REMINDER",
+      "status": "SENT",
+      "title": "Subscription reminder",
+      "message": "Upcoming subscription 'Netflix' will be billed on 2026-10-15 (15.99 USD)",
+      "subjectType": "SUBSCRIPTION",
+      "subjectId": 8,
+      "data": null,
+      "tenantId": 1,
+      "createdAt": "2026-10-10T09:00:00Z",
+      "readAt": null,
+      "archivedAt": null
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "totalElements": 41,
+  "totalPages": 3,
+  "hasNext": true
+}
+```
+
+`status` is optional and accepts `SENT`, `READ`, or `ARCHIVED`.
+
 ### Get Unread Notifications
 ```http
 GET /v1/notifications/unread

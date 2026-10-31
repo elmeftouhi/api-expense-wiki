@@ -51,10 +51,9 @@ public class UpcomingExpenseNotificationScheduler {
             LocalDate today = LocalDate.now(ZoneId.of(tenantConfiguration.getTimezone()));
             LocalDate tomorrow = today.plusDays(1);
             List<Expense> upcomingExpenses = expenseRepository
-                    .findByTenantIdAndStatusAndDueDateBetweenAndDeletedFalse(
+                    .findByTenantIdAndStatusAndDueDateAndDeletedFalse(
                             tenantId,
                             ExpenseStatus.PENDING,
-                            today,
                             tomorrow);
 
             for (Expense expense : upcomingExpenses) {

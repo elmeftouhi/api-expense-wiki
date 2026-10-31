@@ -4,6 +4,8 @@ import com.elmeftouhi.expense.notification.NotificationStatus;
 import com.elmeftouhi.expense.notification.entity.Notification;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -18,6 +20,11 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     List<Notification> findByTenantIdAndUserIdAndStatusOrderByCreatedAtDesc(
             Long tenantId, Long userId, NotificationStatus status);
+
+    Page<Notification> findByTenantIdAndUserIdOrderByCreatedAtDesc(Long tenantId, Long userId, Pageable pageable);
+
+    Page<Notification> findByTenantIdAndUserIdAndStatusOrderByCreatedAtDesc(
+            Long tenantId, Long userId, NotificationStatus status, Pageable pageable);
 
     @Query("""
             SELECT n FROM Notification n
@@ -36,5 +43,6 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     long countByTenantIdAndUserIdAndStatus(Long tenantId, Long userId, NotificationStatus status);
 
     Optional<Notification> findByIdAndTenantId(Long id, Long tenantId);
-}
 
+    Optional<Notification> findByIdAndTenantIdAndUserId(Long id, Long tenantId, Long userId);
+}
