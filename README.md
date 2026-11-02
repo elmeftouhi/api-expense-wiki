@@ -41,6 +41,16 @@ Base config: `application.yml` sets `spring.profiles.default=local`.
 - `DB_PASSWORD`
 - `JWT_SECRET` (must be at least 32 chars)
 - `JWT_EXPIRATION_MINUTES` (optional, default `60`)
+- `CORS_ALLOWED_ORIGINS` (recommended when frontend is on a different domain)
+
+### First production startup on an empty database
+
+By default, production uses `spring.jpa.hibernate.ddl-auto=validate`.
+For a first deployment where tables do not exist yet, do a one-time bootstrap:
+
+1. Set `SPRING_JPA_HIBERNATE_DDL_AUTO=update` and deploy once.
+2. Confirm the app starts and tables are created.
+3. Set `SPRING_JPA_HIBERNATE_DDL_AUTO=validate` and redeploy.
 
 ## Security and tenant behavior
 
